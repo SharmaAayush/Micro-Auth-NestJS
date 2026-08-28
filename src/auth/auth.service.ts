@@ -1,25 +1,46 @@
 import { Injectable } from '@nestjs/common';
-import { users } from 'src/config/users';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { User } from './users.entity';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
-  private users = [...users];
+  constructor(
+    @InjectRepository(User)
+    private usersRepository: Repository<User>,
+  ) {}
 
-  findByEmail(email: string) {
-    return this.users.find((user) => user.email === email);
+  async findByEmail(email: string): Promise<User | null> {
+    return this.usersRepository.findOneBy({ email });
   }
 
-  validateUser(email: string, password: string) {
-    const user = this.findByEmail(email);
-    if (user && user.password === password) {
-      // Remove password from returned user object for security
-      const result = {
-        email: user.email,
-        name: user.name,
-        id: user.id,
-      };
-      return result;
+  async validateUser(email: string, password: string): Promise<any> {
+    const user = await this.findByEmail(email);
+    if (user) {
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (isPasswordValid) {
+        // Remove password from returned user object for security
+        const { password, ...result } = user;
+        return result;
+      }
     }
     return null;
+  }
+
+  async createUser(email: string, password: string, name: string): Promise<User> {
+    // Check if user already exists
+    const existingUser = await this.findByEmail(email);
+    if (existingUser) {
+      throw new Error('User with this email already exists');
+    }
+
+    const user = this.usersRepository.create({
+      email,
+      password, // Will be hashed by the entity's BeforeInsert hook
+      name,
+    });
+
+    return this.usersRepository.save(user);
   }
 }

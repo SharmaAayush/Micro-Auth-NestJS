@@ -42,4 +42,26 @@ export class TokenService {
       },
     );
   }
+
+  async verifyAccessToken(token: string): Promise<TokenPayload> {
+    try {
+      const payload = await this.jwtService.verifyAsync<TokenPayload>(token, {
+        secret: this.configService.get<string>('app.jwt.secret'),
+      });
+      return payload;
+    } catch (error) {
+      throw new Error('Invalid or expired access token');
+    }
+  }
+
+  async verifyRefreshToken(token: string): Promise<TokenPayload> {
+    try {
+      const payload = await this.jwtService.verifyAsync<TokenPayload>(token, {
+        secret: this.configService.get<string>('app.jwt.secret'),
+      });
+      return payload;
+    } catch (error) {
+      throw new Error('Invalid or expired refresh token');
+    }
+  }
 }
