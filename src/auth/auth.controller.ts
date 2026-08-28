@@ -170,7 +170,6 @@ export class AuthController {
     ]);
 
     // Set HTTP-only cookie for refresh token with cross-subdomain support
-    // TODO: Refresh token endpoint is not implemented yet, so this cookie will not be used for now
     const isProduction = process.env.NODE_ENV === 'production';
 
     // Base cookie options with all possible properties
