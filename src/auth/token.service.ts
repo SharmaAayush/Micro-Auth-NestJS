@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService as NestJwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { LoginUser } from './login-user.interface';
 
 export interface TokenPayload {
@@ -9,19 +10,36 @@ export interface TokenPayload {
 
 @Injectable()
 export class TokenService {
-  constructor(private readonly jwtService: NestJwtService) {}
+  constructor(
+    private readonly jwtService: NestJwtService,
+    private readonly configService: ConfigService,
+  ) {}
 
   async generateAccessToken(user: LoginUser) {
+    const expiresIn = this.configService.get<string>(
+      'app.jwt.accessTokenExpiresIn',
+      '15m',
+    ) as string | number;
     return await this.jwtService.signAsync<TokenPayload>(
       { email: user.email, sub: `${user.id}` },
-      { expiresIn: '15m' }, // Short-lived access token
+      {
+        /* @ts-expect-error Necessary due to overly strict types in @nestjs/jwt */
+        expiresIn,
+      },
     );
   }
 
   async generateRefreshToken(user: LoginUser) {
+    const expiresIn = this.configService.get<string>(
+      'app.jwt.refreshTokenExpiresIn',
+      '7d',
+    ) as string | number;
     return await this.jwtService.signAsync<TokenPayload>(
       { email: user.email, sub: `${user.id}` },
-      { expiresIn: '7d' }, // Long-lived refresh token
+      {
+        /* @ts-expect-error Necessary due to overly strict types in @nestjs/jwt */
+        expiresIn,
+      },
     );
   }
 }
