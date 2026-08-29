@@ -12,16 +12,16 @@ import * as bcrypt from 'bcrypt';
 @Unique(['email'])
 export class User {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
-  @Column()
-  email: string;
+  @Column({ nullable: false })
+  email!: string;
 
-  @Column()
-  password: string;
+  @Column({ nullable: false })
+  password!: string;
 
-  @Column()
-  name: string;
+  @Column({ nullable: true })
+  name!: string;
 
   @BeforeInsert()
   @BeforeUpdate()

@@ -28,7 +28,11 @@ export class AuthService {
     return null;
   }
 
-  async createUser(email: string, password: string, name: string): Promise<User> {
+  async createUser(
+    email: string,
+    password: string,
+    name: string,
+  ): Promise<User> {
     // Check if user already exists
     const existingUser = await this.findByEmail(email);
     if (existingUser) {

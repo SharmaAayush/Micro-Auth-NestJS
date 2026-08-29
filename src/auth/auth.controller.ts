@@ -40,7 +40,9 @@ export class AuthController {
     };
   }
 
-  private async generateTokenPair(loginUser: LoginUser): Promise<[string, string]> {
+  private async generateTokenPair(
+    loginUser: LoginUser,
+  ): Promise<[string, string]> {
     const [accessToken, refreshToken] = await Promise.all([
       this.tokenService.generateAccessToken(loginUser),
       this.tokenService.generateRefreshToken(loginUser),
@@ -67,10 +69,7 @@ export class AuthController {
   }
 
   @Post('register')
-  async register(
-    @Body() registerDto: RegisterDto,
-    @Res() res: Response,
-  ) {
+  async register(@Body() registerDto: RegisterDto, @Res() res: Response) {
     const { email, password, name } = registerDto;
 
     // Create user (password will be hashed by AuthService)
@@ -90,39 +89,45 @@ export class AuthController {
   }
 
   @Post('refresh-token')
-  async refreshToken(
-    @Req() req: ExpressRequest,
-    @Res() res: Response,
-  ) {
+  async refreshToken(@Req() req: ExpressRequest, @Res() res: Response) {
     const refreshToken = req.cookies?.refreshToken;
-    
+
     if (!refreshToken) {
-      return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'Refresh token not provided' });
+      return res
+        .status(HttpStatus.UNAUTHORIZED)
+        .json({ message: 'Refresh token not provided' });
     }
 
     try {
       // Verify the refresh token
       const payload = await this.tokenService.verifyRefreshToken(refreshToken);
-      
+
       // Find user by id from token payload
       const user = await this.authService.findByEmail(payload.email);
       if (!user) {
-        return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'Invalid refresh token' });
+        return res
+          .status(HttpStatus.UNAUTHORIZED)
+          .json({ message: 'Invalid refresh token' });
       }
 
       // Create login user object
       const loginUser: LoginUser = this.createLoginUser(user);
 
       // Generate new token pair
-      const [accessToken, newRefreshToken] = await this.generateTokenPair(loginUser);
+      const [accessToken, newRefreshToken] =
+        await this.generateTokenPair(loginUser);
 
       // Set HTTP-only cookie for new refresh token
       this.setRefreshTokenCookie(res, newRefreshToken);
 
-    // Return new access token in response body
-    return res.status(HttpStatus.OK).json({ accessToken, refreshToken: newRefreshToken });
+      // Return new access token in response body
+      return res
+        .status(HttpStatus.OK)
+        .json({ accessToken, refreshToken: newRefreshToken });
     } catch (error) {
-      return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'Invalid or expired refresh token' });
+      return res
+        .status(HttpStatus.UNAUTHORIZED)
+        .json({ message: 'Invalid or expired refresh token' });
     }
   }
 

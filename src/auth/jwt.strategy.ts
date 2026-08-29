@@ -33,5 +33,4 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // _password is intentionally not used
     return result;
   }
-
 }
