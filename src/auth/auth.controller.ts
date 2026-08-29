@@ -32,56 +32,61 @@ export class AuthController {
     private readonly authService: AuthService,
   ) {}
 
+  private createLoginUser(user: any): LoginUser {
+    return {
+      email: user.email,
+      name: user.name,
+      id: user.id,
+    };
+  }
+
+  private async generateTokenPair(loginUser: LoginUser): Promise<[string, string]> {
+    const [accessToken, refreshToken] = await Promise.all([
+      this.tokenService.generateAccessToken(loginUser),
+      this.tokenService.generateRefreshToken(loginUser),
+    ]);
+    return [accessToken, refreshToken];
+  }
+
+  private setRefreshTokenCookie(res: Response, token: string): void {
+    const isProduction = process.env.NODE_ENV === 'production';
+    const sameSiteValue: boolean | 'none' | 'lax' | 'strict' = isProduction
+      ? 'none'
+      : 'lax';
+
+    const cookieOptions = {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: sameSiteValue,
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      ...(isProduction && { domain: process.env.DOMAIN }),
+    };
+
+    res.cookie('refreshToken', token, cookieOptions);
+  }
+
   @Post('register')
   async register(
     @Body() registerDto: RegisterDto,
     @Res() res: Response,
   ) {
     const { email, password, name } = registerDto;
-    
+
     // Create user (password will be hashed by AuthService)
     const user = await this.authService.createUser(email, password, name ?? '');
-    
-    // Generate tokens for the newly registered user
-    const loginUser: LoginUser = {
-      email: user.email,
-      name: user.name,
-      id: user.id,
-    };
-    
-    const accessTokenPromise = this.tokenService.generateAccessToken(loginUser);
-    const refreshTokenPromise = this.tokenService.generateRefreshToken(loginUser);
-    
-    const [accessToken, refreshToken] = await Promise.all([
-      accessTokenPromise,
-      refreshTokenPromise,
-    ]);
 
-    // Set HTTP-only cookie for refresh token with cross-subdomain support
-    const isProduction = process.env.NODE_ENV === 'production';
+    // Create login user object
+    const loginUser: LoginUser = this.createLoginUser(user);
 
-    // Base cookie options with all possible properties
-    const sameSiteValue: boolean | 'none' | 'lax' | 'strict' = isProduction
-      ? 'none'
-      : 'lax';
-    const cookieOptions = {
-      httpOnly: true,
-      secure: isProduction, // MUST be true for sameSite='none' in production
-      sameSite: sameSiteValue,
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      domain: isProduction ? process.env.DOMAIN : undefined,
-    };
+    // Generate tokens
+    const [accessToken, refreshToken] = await this.generateTokenPair(loginUser);
 
-    // Remove domain property if not in production (to avoid setting domain in development)
-    if (!isProduction) {
-      delete cookieOptions.domain;
-    }
+    // Set HTTP-only cookie for refresh token
+    this.setRefreshTokenCookie(res, refreshToken);
 
-    res.cookie('refreshToken', refreshToken, cookieOptions);
-
-    // Return access token in response body
-    return res.status(HttpStatus.OK).json({ accessToken, refreshToken });
+    // Return only access token in response body (matching login route)
+    return res.status(HttpStatus.OK).json({ accessToken });
   }
 
   @Post('refresh-token')
@@ -105,43 +110,14 @@ export class AuthController {
         return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'Invalid refresh token' });
       }
 
+      // Create login user object
+      const loginUser: LoginUser = this.createLoginUser(user);
+
       // Generate new token pair
-      const loginUser: LoginUser = {
-        email: user.email,
-        name: user.name,
-        id: user.id,
-      };
-      
-      const accessTokenPromise = this.tokenService.generateAccessToken(loginUser);
-      const newRefreshTokenPromise = this.tokenService.generateRefreshToken(loginUser);
-      
-      const [accessToken, newRefreshToken] = await Promise.all([
-        accessTokenPromise,
-        newRefreshTokenPromise,
-      ]);
+      const [accessToken, newRefreshToken] = await this.generateTokenPair(loginUser);
 
       // Set HTTP-only cookie for new refresh token
-      const isProduction = process.env.NODE_ENV === 'production';
-
-      // Base cookie options with all possible properties
-      const sameSiteValue: boolean | 'none' | 'lax' | 'strict' = isProduction
-        ? 'none'
-        : 'lax';
-    const cookieOptions = {
-      httpOnly: true,
-      secure: isProduction, // MUST be true for sameSite='none' in production
-      sameSite: sameSiteValue,
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      domain: isProduction ? process.env.DOMAIN : undefined,
-    };
-
-    // Remove domain property if not in production (to avoid setting domain in development)
-    if (!isProduction) {
-      delete cookieOptions.domain;
-    }
-
-    res.cookie('refreshToken', newRefreshToken, cookieOptions);
+      this.setRefreshTokenCookie(res, newRefreshToken);
 
     // Return new access token in response body
     return res.status(HttpStatus.OK).json({ accessToken, refreshToken: newRefreshToken });
@@ -160,39 +136,16 @@ export class AuthController {
   ) {
     const user = req.user;
 
+    // Create login user object
+    const loginUser: LoginUser = this.createLoginUser(user);
+
     // Generate tokens
-    const accessTokenPromise = this.tokenService.generateAccessToken(user);
-    const refreshTokenPromise = this.tokenService.generateRefreshToken(user);
+    const [accessToken, refreshToken] = await this.generateTokenPair(loginUser);
 
-    const [accessToken, refreshToken] = await Promise.all([
-      accessTokenPromise,
-      refreshTokenPromise,
-    ]);
+    // Set HTTP-only cookie for refresh token
+    this.setRefreshTokenCookie(res, refreshToken);
 
-    // Set HTTP-only cookie for refresh token with cross-subdomain support
-    const isProduction = process.env.NODE_ENV === 'production';
-
-    // Base cookie options with all possible properties
-    const sameSiteValue: boolean | 'none' | 'lax' | 'strict' = isProduction
-      ? 'none'
-      : 'lax';
-    const cookieOptions = {
-      httpOnly: true,
-      secure: isProduction, // MUST be true for sameSite='none' in production
-      sameSite: sameSiteValue,
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      domain: isProduction ? process.env.DOMAIN : undefined,
-    };
-
-    // Remove domain property if not in production (to avoid setting domain in development)
-    if (!isProduction) {
-      delete cookieOptions.domain;
-    }
-
-    res.cookie('refreshToken', refreshToken, cookieOptions);
-
-    // Return access token in response body
+    // Return only access token in response body
     return res.status(HttpStatus.OK).json({ accessToken });
   }
 }
