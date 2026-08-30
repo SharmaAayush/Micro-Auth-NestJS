@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { HealthModule } from './health/health.module';
 import configuration from './config/configuration';
 import dataSource from './db/typeorm.config';
 
@@ -21,6 +22,7 @@ import dataSource from './db/typeorm.config';
       },
     }),
     AuthModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
