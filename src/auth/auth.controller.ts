@@ -2,11 +2,11 @@ import {
   Controller,
   Post,
   UseGuards,
-  Request,
   Res,
   HttpStatus,
   Body,
   Req,
+  Get,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request as ExpressRequest, Response } from 'express';
@@ -136,9 +136,7 @@ export class AuthController {
       this.setRefreshTokenCookie(res, newRefreshToken);
 
       // Return new access token in response body
-      return res
-        .status(HttpStatus.OK)
-        .json({ accessToken, refreshToken: newRefreshToken });
+      return res.status(HttpStatus.OK).json({ accessToken });
     } catch {
       return res
         .status(HttpStatus.UNAUTHORIZED)
@@ -149,7 +147,7 @@ export class AuthController {
   @Post('login')
   @UseGuards(AuthGuard('local'))
   async login(
-    @Request()
+    @Req()
     req: AuthRequest,
     @Res()
     res: Response,
@@ -167,5 +165,12 @@ export class AuthController {
 
     // Return only access token in response body
     return res.status(HttpStatus.OK).json({ accessToken });
+  }
+
+  @Get('validate')
+  @UseGuards(AuthGuard('jwt'))
+  validate() {
+    // Guard handles validation - if we reach here, token is valid
+    // Return 200 status with no body
   }
 }
