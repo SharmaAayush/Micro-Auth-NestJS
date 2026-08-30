@@ -6,6 +6,8 @@ import { LoginUser } from './login-user.interface';
 export interface TokenPayload {
   email: string;
   sub: string; // user id
+  exp?: number; // expiration time
+  iat?: number; // issued at
 }
 
 @Injectable()
@@ -49,7 +51,7 @@ export class TokenService {
         secret: this.configService.get<string>('app.jwt.secret'),
       });
       return payload;
-    } catch (error) {
+    } catch {
       throw new Error('Invalid or expired access token');
     }
   }
@@ -60,7 +62,7 @@ export class TokenService {
         secret: this.configService.get<string>('app.jwt.secret'),
       });
       return payload;
-    } catch (error) {
+    } catch {
       throw new Error('Invalid or expired refresh token');
     }
   }

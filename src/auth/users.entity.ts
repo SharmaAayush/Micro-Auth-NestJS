@@ -21,7 +21,7 @@ export class User {
   password!: string;
 
   @Column({ nullable: true })
-  name!: string;
+  name?: string;
 
   @BeforeInsert()
   @BeforeUpdate()

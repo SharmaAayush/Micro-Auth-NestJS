@@ -6,7 +6,6 @@ import {
   Res,
   HttpStatus,
   Body,
-  Get,
   Req,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
@@ -14,6 +13,7 @@ import type { Request as ExpressRequest, Response } from 'express';
 import { TokenService } from './token.service';
 import { LoginUser } from './login-user.interface';
 import { AuthService } from './auth.service';
+import { User } from './users.entity';
 
 interface AuthRequest extends ExpressRequest {
   user: LoginUser;
@@ -25,6 +25,10 @@ interface RegisterDto {
   name?: string;
 }
 
+interface RefreshTokenCookie {
+  refreshToken?: string;
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -32,10 +36,12 @@ export class AuthController {
     private readonly authService: AuthService,
   ) {}
 
-  private createLoginUser(user: any): LoginUser {
+  private createLoginUser(
+    user: Pick<User, 'email' | 'name' | 'id'>,
+  ): LoginUser {
     return {
       email: user.email,
-      name: user.name,
+      name: user.name || '',
       id: user.id,
     };
   }
@@ -90,7 +96,7 @@ export class AuthController {
 
   @Post('refresh-token')
   async refreshToken(@Req() req: ExpressRequest, @Res() res: Response) {
-    const refreshToken = req.cookies?.refreshToken;
+    const refreshToken = (req.cookies as RefreshTokenCookie)?.refreshToken;
 
     if (!refreshToken) {
       return res
@@ -101,6 +107,15 @@ export class AuthController {
     try {
       // Verify the refresh token
       const payload = await this.tokenService.verifyRefreshToken(refreshToken);
+
+      // Explicitly validate expiration and issued at claims
+      const currentTime = Math.floor(Date.now() / 1000);
+      if (payload.exp !== undefined && payload.exp <= currentTime) {
+        throw new Error('Refresh token has expired');
+      }
+      if (payload.iat !== undefined && payload.iat > currentTime) {
+        throw new Error('Refresh token issued in the future');
+      }
 
       // Find user by id from token payload
       const user = await this.authService.findByEmail(payload.email);
@@ -124,7 +139,7 @@ export class AuthController {
       return res
         .status(HttpStatus.OK)
         .json({ accessToken, refreshToken: newRefreshToken });
-    } catch (error) {
+    } catch {
       return res
         .status(HttpStatus.UNAUTHORIZED)
         .json({ message: 'Invalid or expired refresh token' });
