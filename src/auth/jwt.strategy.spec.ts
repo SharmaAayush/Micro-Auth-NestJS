@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './jwt.strategy';
-import { SessionsService } from './sessions.service';
+import { SessionsService } from './sessions/sessions.service';
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
