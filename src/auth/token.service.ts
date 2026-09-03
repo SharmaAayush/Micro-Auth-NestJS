@@ -6,6 +6,7 @@ import { LoginUser } from './login-user.interface';
 export interface TokenPayload {
   email: string;
   sub: string; // user id
+  jti: string; // session id
   exp?: number; // expiration time
   iat?: number; // issued at
 }
@@ -17,13 +18,13 @@ export class TokenService {
     private readonly configService: ConfigService,
   ) {}
 
-  async generateAccessToken(user: LoginUser) {
+  async generateAccessToken(user: LoginUser, jti: string): Promise<string> {
     const expiresIn = this.configService.get<string>(
       'app.jwt.accessTokenExpiresIn',
       '15m',
     ) as string | number;
     return await this.jwtService.signAsync<TokenPayload>(
-      { email: user.email, sub: `${user.id}` },
+      { email: user.email, sub: `${user.id}`, jti },
       {
         /* @ts-expect-error Necessary due to overly strict types in @nestjs/jwt */
         expiresIn,
@@ -31,13 +32,13 @@ export class TokenService {
     );
   }
 
-  async generateRefreshToken(user: LoginUser) {
+  async generateRefreshToken(user: LoginUser, jti: string): Promise<string> {
     const expiresIn = this.configService.get<string>(
       'app.jwt.refreshTokenExpiresIn',
       '7d',
     ) as string | number;
     return await this.jwtService.signAsync<TokenPayload>(
-      { email: user.email, sub: `${user.id}` },
+      { email: user.email, sub: `${user.id}`, jti },
       {
         /* @ts-expect-error Necessary due to overly strict types in @nestjs/jwt */
         expiresIn,
