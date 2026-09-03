@@ -9,6 +9,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { TokenService } from './token.service';
 import { PassportModule } from '@nestjs/passport';
 import { User } from './users.entity';
+import { SessionsModule } from './sessions/sessions.module';
 
 @Module({
   imports: [
@@ -18,12 +19,11 @@ import { User } from './users.entity';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('app.jwt.secret'),
-        // We don't set signOptions here because we want to set expiresIn per token type
-        // in the TokenService.
         signOptions: {},
       }),
     }),
     TypeOrmModule.forFeature([User]),
+    SessionsModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, LocalStrategy, JwtStrategy, TokenService],
