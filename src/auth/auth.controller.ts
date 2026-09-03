@@ -9,14 +9,20 @@ import {
   Get,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { randomUUID } from 'node:crypto';
 import type { Request as ExpressRequest, Response } from 'express';
 import { TokenService } from './token.service';
 import { LoginUser } from './login-user.interface';
 import { AuthService } from './auth.service';
 import { User } from './users.entity';
+import { SessionsService } from './sessions/sessions.service';
+import { getClientIp } from './sessions/client-ip.util';
+import { Session } from './sessions/session.entity';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
 interface AuthRequest extends ExpressRequest {
-  user: LoginUser;
+  user: LoginUser & { jti: string };
 }
 
 interface RegisterDto {
@@ -29,31 +35,43 @@ interface RefreshTokenCookie {
   refreshToken?: string;
 }
 
+interface TokenPairResult {
+  accessToken: string;
+  refreshToken: string;
+  jti: string;
+  refreshExpiresAt: Date;
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly tokenService: TokenService,
     private readonly authService: AuthService,
+    private readonly sessionsService: SessionsService,
+    @InjectRepository(Session)
+    private readonly sessionsRepository: Repository<Session>,
   ) {}
-
-  private createLoginUser(
-    user: Pick<User, 'email' | 'name' | 'id'>,
-  ): LoginUser {
-    return {
-      email: user.email,
-      name: user.name || '',
-      id: user.id,
-    };
-  }
 
   private async generateTokenPair(
     loginUser: LoginUser,
-  ): Promise<[string, string]> {
+  ): Promise<TokenPairResult> {
+    const jti = randomUUID();
     const [accessToken, refreshToken] = await Promise.all([
-      this.tokenService.generateAccessToken(loginUser),
-      this.tokenService.generateRefreshToken(loginUser),
+      this.tokenService.generateAccessToken(loginUser, jti),
+      this.tokenService.generateRefreshToken(loginUser, jti),
     ]);
-    return [accessToken, refreshToken];
+    const refreshExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    return { accessToken, refreshToken, jti, refreshExpiresAt };
+  }
+
+  private getRequestMeta(req: ExpressRequest): {
+    userAgent: string | null;
+    ipAddress: string | null;
+  } {
+    return {
+      userAgent: (req.headers['user-agent'] as string | undefined) ?? null,
+      ipAddress: getClientIp(req),
+    };
   }
 
   private setRefreshTokenCookie(res: Response, token: string): void {
@@ -75,23 +93,26 @@ export class AuthController {
   }
 
   @Post('register')
-  async register(@Body() registerDto: RegisterDto, @Res() res: Response) {
+  async register(@Body() registerDto: RegisterDto, @Req() req: ExpressRequest, @Res() res: Response) {
     const { email, password, name } = registerDto;
 
-    // Create user (password will be hashed by AuthService)
     const user = await this.authService.createUser(email, password, name ?? '');
+    const loginUser: LoginUser = {
+      email: user.email,
+      name: user.name || '',
+      id: user.id,
+    };
 
-    // Create login user object
-    const loginUser: LoginUser = this.createLoginUser(user);
+    const pair = await this.generateTokenPair(loginUser);
+    this.setRefreshTokenCookie(res, pair.refreshToken);
+    await this.sessionsService.create(
+      user.id,
+      pair.jti,
+      this.getRequestMeta(req),
+      pair.refreshExpiresAt,
+    );
 
-    // Generate tokens
-    const [accessToken, refreshToken] = await this.generateTokenPair(loginUser);
-
-    // Set HTTP-only cookie for refresh token
-    this.setRefreshTokenCookie(res, refreshToken);
-
-    // Return only access token in response body (matching login route)
-    return res.status(HttpStatus.OK).json({ accessToken });
+    return res.status(HttpStatus.OK).json({ accessToken: pair.accessToken });
   }
 
   @Post('refresh-token')
@@ -104,73 +125,88 @@ export class AuthController {
         .json({ message: 'Refresh token not provided' });
     }
 
+    let payload;
     try {
-      // Verify the refresh token
-      const payload = await this.tokenService.verifyRefreshToken(refreshToken);
-
-      // Explicitly validate expiration and issued at claims
-      const currentTime = Math.floor(Date.now() / 1000);
-      if (payload.exp !== undefined && payload.exp <= currentTime) {
-        throw new Error('Refresh token has expired');
-      }
-      if (payload.iat !== undefined && payload.iat > currentTime) {
-        throw new Error('Refresh token issued in the future');
-      }
-
-      // Find user by id from token payload
-      const user = await this.authService.findByEmail(payload.email);
-      if (!user) {
-        return res
-          .status(HttpStatus.UNAUTHORIZED)
-          .json({ message: 'Invalid refresh token' });
-      }
-
-      // Create login user object
-      const loginUser: LoginUser = this.createLoginUser(user);
-
-      // Generate new token pair
-      const [accessToken, newRefreshToken] =
-        await this.generateTokenPair(loginUser);
-
-      // Set HTTP-only cookie for new refresh token
-      this.setRefreshTokenCookie(res, newRefreshToken);
-
-      // Return new access token in response body
-      return res.status(HttpStatus.OK).json({ accessToken });
+      payload = await this.tokenService.verifyRefreshToken(refreshToken);
     } catch {
       return res
         .status(HttpStatus.UNAUTHORIZED)
         .json({ message: 'Invalid or expired refresh token' });
     }
+
+    // Reuse-detection: if no session row exists for this jti, the refresh
+    // token was already rotated or revoked. Treat as a replay and revoke
+    // all sessions for the user.
+    const existing = await this.sessionsService.findByJti(payload.jti);
+    if (!existing) {
+      const userForRevoke = await this.authService.findByEmail(payload.email);
+      if (userForRevoke) {
+        await this.sessionsService.deleteAllForUser(userForRevoke.id);
+      }
+      return res
+        .status(HttpStatus.UNAUTHORIZED)
+        .json({ message: 'Refresh token reuse detected' });
+    }
+
+    const user = await this.authService.findByEmail(payload.email);
+    if (!user) {
+      return res
+        .status(HttpStatus.UNAUTHORIZED)
+        .json({ message: 'Invalid refresh token' });
+    }
+
+    const loginUser: LoginUser = {
+      email: user.email,
+      name: user.name || '',
+      id: user.id,
+    };
+    const pair = await this.generateTokenPair(loginUser);
+    this.setRefreshTokenCookie(res, pair.refreshToken);
+
+    // Transaction: delete the old session row, create the new one.
+    await this.sessionsRepository.manager.transaction(async (manager) => {
+      await manager.delete(Session, payload.jti);
+      const newSession = manager.create(Session, {
+        id: pair.jti,
+        userId: user.id,
+        userAgent: this.getRequestMeta(req).userAgent,
+        ipAddress: this.getRequestMeta(req).ipAddress,
+        expiresAt: pair.refreshExpiresAt,
+      });
+      await manager.save(newSession);
+    });
+
+    return res.status(HttpStatus.OK).json({ accessToken: pair.accessToken });
   }
 
   @Post('login')
   @UseGuards(AuthGuard('local'))
   async login(
-    @Req()
-    req: AuthRequest,
-    @Res()
-    res: Response,
+    @Req() req: AuthRequest,
+    @Res() res: Response,
   ) {
     const user = req.user;
+    const loginUser: LoginUser = {
+      email: user.email,
+      name: user.name || '',
+      id: user.id,
+    };
 
-    // Create login user object
-    const loginUser: LoginUser = this.createLoginUser(user);
+    const pair = await this.generateTokenPair(loginUser);
+    this.setRefreshTokenCookie(res, pair.refreshToken);
+    await this.sessionsService.create(
+      user.id,
+      pair.jti,
+      this.getRequestMeta(req),
+      pair.refreshExpiresAt,
+    );
 
-    // Generate tokens
-    const [accessToken, refreshToken] = await this.generateTokenPair(loginUser);
-
-    // Set HTTP-only cookie for refresh token
-    this.setRefreshTokenCookie(res, refreshToken);
-
-    // Return only access token in response body
-    return res.status(HttpStatus.OK).json({ accessToken });
+    return res.status(HttpStatus.OK).json({ accessToken: pair.accessToken });
   }
 
   @Get('validate')
   @UseGuards(AuthGuard('jwt'))
   validate() {
-    // Guard handles validation - if we reach here, token is valid
-    // Return 200 status with no body
+    // Guard handles validation - if we reach here, token + session are valid
   }
 }
