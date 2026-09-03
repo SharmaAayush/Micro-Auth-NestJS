@@ -36,3 +36,29 @@ Handles user registration, login, JWT token generation/validation, and refresh t
 
 - The AuthModule is imported in `AppModule` but is not marked `@Global()` (consider adding `@Global()` if needed across multiple modules).
 - Password hashing occurs via a BeforeInsert hook in the User entity (not shown in service but assumed).
+
+## Sessions
+
+The `sessions` subdirectory at `src/auth/sessions/` owns the `Session` entity, the `SessionsService`, and the `SessionsController`. A `Session` row is created on `register` and `login`, deleted-and-recreated on `refresh-token`, and may be deleted manually by the user.
+
+### Token binding
+
+Both the access and refresh tokens issued for a session carry the same `jti` claim. The `Session.id` is that `jti` (a uuid). The `TokenService` API takes `jti` as an argument; the controller generates the jti once per pair and passes it to both token-generation calls.
+
+### `/auth/validate`
+
+The JWT strategy consults `SessionsService.findByJti(payload.jti)`. If no row exists, or the row is expired, the strategy returns `null` and the request is rejected with 401. Other services that share the database can call `SessionsService.findByJti` directly; other services without DB access call `GET /auth/validate` over HTTP. The two modes return the same answer.
+
+### Session management endpoints
+
+- `GET /auth/sessions` — list the current user's active sessions.
+- `DELETE /auth/sessions/:id` — terminate one session. 404 if not found or not owned.
+- `DELETE /auth/sessions` — terminate all sessions except the current one. Log out everywhere-else.
+
+### Refresh-token reuse detection
+
+`/auth/refresh-token` checks `SessionsService.findByJti` for the inbound token's jti. If no row exists but the JWT is otherwise valid, the request is treated as a replay of a previously rotated or revoked refresh token; all sessions for the user are revoked and 401 is returned.
+
+### Session lifetime
+
+`Session.expires_at` matches the refresh-token's `exp` claim (7 days from session creation). When `expires_at` passes, `/auth/validate` returns 401 even if the JWT signature is still valid. The migration adds an index on `expires_at` for a future purge job; this spec does not implement that job.
