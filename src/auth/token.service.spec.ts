@@ -15,7 +15,13 @@ describe('TokenService', () => {
         { provide: JwtService, useValue: jwt },
         {
           provide: ConfigService,
-          useValue: { get: jest.fn().mockReturnValue('secret') },
+          useValue: {
+            get: jest.fn().mockImplementation((key: string) => {
+              if (key === 'app.jwt.accessTokenExpiresIn') return '15m';
+              if (key === 'app.jwt.refreshTokenExpiresIn') return '7d';
+              return 'secret';
+            }),
+          },
         },
       ],
     }).compile();
