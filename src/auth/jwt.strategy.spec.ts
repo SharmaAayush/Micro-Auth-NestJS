@@ -31,14 +31,14 @@ describe('JwtStrategy', () => {
       expiresAt: new Date(Date.now() + 60_000),
     });
 
-    const result = await strategy.validate(basePayload as any);
+    const result = await strategy.validate(basePayload);
 
     expect(result).toEqual({ id: 7, email: 'a@b.c', jti: 'jti-1' });
   });
 
   it('returns null when no session row exists', async () => {
     sessions.findByJti.mockResolvedValue(null);
-    const result = await strategy.validate(basePayload as any);
+    const result = await strategy.validate(basePayload);
     expect(result).toBeNull();
   });
 
@@ -48,7 +48,7 @@ describe('JwtStrategy', () => {
       userId: 7,
       expiresAt: new Date(Date.now() - 60_000),
     });
-    const result = await strategy.validate(basePayload as any);
+    const result = await strategy.validate(basePayload);
     expect(result).toBeNull();
   });
 });

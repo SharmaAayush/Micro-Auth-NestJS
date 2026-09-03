@@ -11,10 +11,9 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { randomUUID } from 'node:crypto';
 import type { Request as ExpressRequest, Response } from 'express';
-import { TokenService } from './token.service';
+import { TokenService, TokenPayload } from './token.service';
 import { LoginUser } from './login-user.interface';
 import { AuthService } from './auth.service';
-import { User } from './users.entity';
 import { SessionsService } from './sessions/sessions.service';
 import { getClientIp } from './sessions/client-ip.util';
 import { Session } from './sessions/session.entity';
@@ -69,7 +68,7 @@ export class AuthController {
     ipAddress: string | null;
   } {
     return {
-      userAgent: (req.headers['user-agent'] as string | undefined) ?? null,
+      userAgent: req.headers['user-agent'] ?? null,
       ipAddress: getClientIp(req),
     };
   }
@@ -93,7 +92,11 @@ export class AuthController {
   }
 
   @Post('register')
-  async register(@Body() registerDto: RegisterDto, @Req() req: ExpressRequest, @Res() res: Response) {
+  async register(
+    @Body() registerDto: RegisterDto,
+    @Req() req: ExpressRequest,
+    @Res() res: Response,
+  ) {
     const { email, password, name } = registerDto;
 
     const user = await this.authService.createUser(email, password, name ?? '');
@@ -125,7 +128,7 @@ export class AuthController {
         .json({ message: 'Refresh token not provided' });
     }
 
-    let payload;
+    let payload: TokenPayload;
     try {
       payload = await this.tokenService.verifyRefreshToken(refreshToken);
     } catch {
@@ -181,10 +184,7 @@ export class AuthController {
 
   @Post('login')
   @UseGuards(AuthGuard('local'))
-  async login(
-    @Req() req: AuthRequest,
-    @Res() res: Response,
-  ) {
+  async login(@Req() req: AuthRequest, @Res() res: Response) {
     const user = req.user;
     const loginUser: LoginUser = {
       email: user.email,

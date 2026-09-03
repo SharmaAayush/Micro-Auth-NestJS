@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { SessionsService } from './sessions.service';
 import { Session } from './session.entity';
 
@@ -14,7 +14,9 @@ const buildRepoMock = (): RepoMock =>
     find: jest.fn(),
     delete: jest.fn(),
     createQueryBuilder: jest.fn(),
-  } as unknown as RepoMock);
+  }) as unknown as RepoMock;
+
+/* eslint-disable @typescript-eslint/unbound-method */
 
 describe('SessionsService', () => {
   let service: SessionsService;
@@ -31,7 +33,7 @@ describe('SessionsService', () => {
     service = module.get<SessionsService>(SessionsService);
   });
 
-  const futureDate = () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const futureDate = (): Date => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
   describe('create', () => {
     it('persists a session row with the given fields', async () => {
@@ -43,7 +45,7 @@ describe('SessionsService', () => {
         ipAddress: '1.2.3.4',
         createdAt: new Date(),
         expiresAt,
-      } as Session;
+      };
       repo.create.mockReturnValue(created);
       repo.save.mockResolvedValue(created);
 
@@ -68,7 +70,7 @@ describe('SessionsService', () => {
 
   describe('findByJti', () => {
     it('returns the session when the repository finds one', async () => {
-      const found: Session = { id: 'jti-1' } as Session;
+      const found = { id: 'jti-1' } as Session;
       repo.findOne.mockResolvedValue(found);
 
       const result = await service.findByJti('jti-1');
@@ -86,7 +88,7 @@ describe('SessionsService', () => {
 
   describe('listForUser', () => {
     it('returns sessions for the user ordered by createdAt desc', async () => {
-      const rows: Session[] = [{ id: 'a' }, { id: 'b' }] as Session[];
+      const rows = [{ id: 'a' }, { id: 'b' }] as Session[];
       repo.find.mockResolvedValue(rows);
 
       const result = await service.listForUser(42);
@@ -101,7 +103,7 @@ describe('SessionsService', () => {
 
   describe('deleteByJti', () => {
     it('returns true and deletes when the row exists and is owned by the user', async () => {
-      const row: Session = { id: 'jti-1', userId: 42 } as Session;
+      const row = { id: 'jti-1', userId: 42 } as Session;
       repo.findOne.mockResolvedValue(row);
       repo.delete.mockResolvedValue({ affected: 1, raw: [] });
 
@@ -119,7 +121,7 @@ describe('SessionsService', () => {
     });
 
     it('returns false when the row is owned by another user', async () => {
-      const row: Session = { id: 'jti-1', userId: 99 } as Session;
+      const row = { id: 'jti-1', userId: 99 } as Session;
       repo.findOne.mockResolvedValue(row);
       const result = await service.deleteByJti('jti-1', 42);
       expect(repo.delete).not.toHaveBeenCalled();
@@ -128,13 +130,20 @@ describe('SessionsService', () => {
   });
 
   describe('deleteAllForUser', () => {
-    it('deletes every row for the user', async () => {
+    const buildQueryBuilderMock = () => {
       const qb = {
         delete: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
-        execute: jest.fn().mockResolvedValue({ affected: 3, raw: [] }),
+        andWhere: jest.fn().mockReturnThis(),
+        execute: jest.fn(),
       };
-      repo.createQueryBuilder.mockReturnValue(qb as any);
+      return qb as unknown as SelectQueryBuilder<Session> & typeof qb;
+    };
+
+    it('deletes every row for the user', async () => {
+      const qb = buildQueryBuilderMock();
+      qb.execute.mockResolvedValue({ affected: 3, raw: [] });
+      repo.createQueryBuilder.mockReturnValue(qb);
 
       const result = await service.deleteAllForUser(42);
 
@@ -146,13 +155,9 @@ describe('SessionsService', () => {
     });
 
     it('excludes exceptJti from the delete when provided', async () => {
-      const qb = {
-        delete: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        execute: jest.fn().mockResolvedValue({ affected: 2, raw: [] }),
-      };
-      repo.createQueryBuilder.mockReturnValue(qb as any);
+      const qb = buildQueryBuilderMock();
+      qb.execute.mockResolvedValue({ affected: 2, raw: [] });
+      repo.createQueryBuilder.mockReturnValue(qb);
 
       const result = await service.deleteAllForUser(42, 'keep-this');
 
@@ -163,13 +168,9 @@ describe('SessionsService', () => {
     });
 
     it('does not call andWhere when exceptJti is not provided', async () => {
-      const qb = {
-        delete: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        execute: jest.fn().mockResolvedValue({ affected: 0, raw: [] }),
-      };
-      repo.createQueryBuilder.mockReturnValue(qb as any);
+      const qb = buildQueryBuilderMock();
+      qb.execute.mockResolvedValue({ affected: 0, raw: [] });
+      repo.createQueryBuilder.mockReturnValue(qb);
 
       await service.deleteAllForUser(42);
 
