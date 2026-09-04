@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { randomUUID } from 'node:crypto';
-import type { Request as ExpressRequest, Response } from 'express';
+import type { Request, Response } from 'express';
 import { TokenService, TokenPayload } from './token.service';
 import { LoginUser } from './login-user.interface';
 import { AuthService } from './auth.service';
@@ -21,14 +21,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-
-interface AuthRequest extends ExpressRequest {
-  user: LoginUser & { jti: string };
-}
-
-interface RefreshTokenCookie {
-  refreshToken?: string;
-}
+import { RequestUser, RequestMeta } from './types';
 
 interface TokenPairResult {
   accessToken: string;
@@ -59,7 +52,7 @@ export class AuthController {
     return { accessToken, refreshToken, jti, refreshExpiresAt };
   }
 
-  private getRequestMeta(req: ExpressRequest): {
+  private getRequestMeta(req: Request): {
     userAgent: string | null;
     ipAddress: string | null;
   } {
@@ -90,7 +83,7 @@ export class AuthController {
   @Post('register')
   async register(
     @Body() registerDto: RegisterDto,
-    @Req() req: ExpressRequest,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
     const { email, password, name } = registerDto;
@@ -115,8 +108,8 @@ export class AuthController {
   }
 
   @Post('refresh-token')
-  async refreshToken(@Req() req: ExpressRequest, @Res() res: Response) {
-    const refreshToken = (req.cookies as RefreshTokenCookie)?.refreshToken;
+  async refreshToken(@Req() req: Request, @Res() res: Response) {
+    const refreshToken = (req as Request & { cookies: Record<string, string | undefined> }).cookies?.refreshToken;
 
     if (!refreshToken) {
       return res
@@ -182,7 +175,7 @@ export class AuthController {
   @UseGuards(AuthGuard('local'))
   async login(
     @Body() _loginDto: LoginDto,
-    @Req() req: AuthRequest,
+    @Req() req: Request & { user: LoginUser },
     @Res() res: Response,
   ) {
     const user = req.user;

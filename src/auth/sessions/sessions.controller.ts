@@ -12,10 +12,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
 import { SessionsService } from './sessions.service';
-
-interface SessionsAuthRequest extends Request {
-  user: { id: number; email: string; jti: string };
-}
+import { RequestUser } from '../types';
 
 @Controller('auth/sessions')
 @UseGuards(AuthGuard('jwt'))
@@ -23,7 +20,7 @@ export class SessionsController {
   constructor(private readonly sessionsService: SessionsService) {}
 
   @Get()
-  async list(@Req() req: SessionsAuthRequest) {
+  async list(@Req() req: Request & { user: RequestUser }) {
     const sessions = await this.sessionsService.listForUser(req.user.id);
     return sessions.map((s) => ({
       id: s.id,
@@ -37,7 +34,7 @@ export class SessionsController {
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteOne(
-    @Req() req: SessionsAuthRequest,
+    @Req() req: Request & { user: RequestUser },
     @Param('id') id: string,
   ): Promise<void> {
     const ok = await this.sessionsService.deleteByJti(id, req.user.id);
@@ -48,7 +45,7 @@ export class SessionsController {
 
   @Delete()
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteAll(@Req() req: SessionsAuthRequest): Promise<void> {
+  async deleteAll(@Req() req: Request & { user: RequestUser }): Promise<void> {
     await this.sessionsService.deleteAllForUser(req.user.id, req.user.jti);
   }
 }
