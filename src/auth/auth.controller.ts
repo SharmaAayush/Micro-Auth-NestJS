@@ -23,7 +23,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { RequestUser, RequestMeta } from './types';
+import { RequestMeta } from './types';
 
 interface TokenPairResult {
   accessToken: string;
@@ -54,10 +54,7 @@ export class AuthController {
     return { accessToken, refreshToken, jti, refreshExpiresAt };
   }
 
-  private getRequestMeta(req: Request): {
-    userAgent: string | null;
-    ipAddress: string | null;
-  } {
+  private getRequestMeta(req: Request): RequestMeta {
     return {
       userAgent: req.headers['user-agent'] ?? null,
       ipAddress: getClientIp(req),

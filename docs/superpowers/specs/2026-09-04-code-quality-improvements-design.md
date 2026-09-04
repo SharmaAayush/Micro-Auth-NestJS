@@ -64,11 +64,10 @@ src/
   common/
     transform/
       response/
-        envelope.interceptor.ts              # NEW
+        envelope.interceptor.ts              # NEW (types live inline in this file)
         envelope.module.ts                   # NEW
         skip-envelope.decorator.ts           # NEW
         set-meta.decorator.ts                # NEW
-        envelope.types.ts                    # NEW
   db/
     migrations/
       17879...-CreateSessions.ts             # UNCHANGED

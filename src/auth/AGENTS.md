@@ -62,3 +62,7 @@ The JWT strategy consults `SessionsService.findByJti(payload.jti)`. If no row ex
 ### Session lifetime
 
 `Session.expires_at` matches the refresh-token's `exp` claim (7 days from session creation). When `expires_at` passes, `/auth/validate` returns 401 even if the JWT signature is still valid. The migration adds an index on `expires_at` for a future purge job; this spec does not implement that job.
+
+## Response envelope
+
+`EnvelopeModule` lives in `src/common/transform/response/` and is `@Global()`. Every successful controller response is wrapped in `{ data: ... }` by default via the global `EnvelopeInterceptor`. Use `@SkipEnvelope()` on a controller class to opt out (current example: `HealthController`). Use `@SetMeta(key, value)` on a handler to merge extra fields into the envelope as a `meta` object.
