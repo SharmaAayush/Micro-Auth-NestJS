@@ -27,13 +27,17 @@ describe('JwtStrategy', () => {
   it('returns the user when a non-expired session exists', async () => {
     sessions.findByJti.mockResolvedValue({
       id: 'jti-1',
-      userId: 7,
+      userId: '00000000-0000-0000-0000-000000000000',
       expiresAt: new Date(Date.now() + 60_000),
     });
 
     const result = await strategy.validate(basePayload);
 
-    expect(result).toEqual({ id: 7, email: 'a@b.c', jti: 'jti-1' });
+    expect(result).toEqual({
+      id: '00000000-0000-0000-0000-000000000000',
+      email: 'a@b.c',
+      jti: 'jti-1',
+    });
   });
 
   it('returns null when no session row exists', async () => {
@@ -45,7 +49,7 @@ describe('JwtStrategy', () => {
   it('returns null when the session is expired', async () => {
     sessions.findByJti.mockResolvedValue({
       id: 'jti-1',
-      userId: 7,
+      userId: '00000000-0000-0000-0000-000000000000',
       expiresAt: new Date(Date.now() - 60_000),
     });
     const result = await strategy.validate(basePayload);

@@ -33,9 +33,14 @@ describe('AuthController.generateTokenPair', () => {
   });
 
   it('uses getExpiryFromToken(refreshToken) for refreshExpiresAt', async () => {
-    const user: User = { id: 7, email: 'a@b.c', password: 'h', name: 'A' } as User;
+    const user: User = {
+      id: '7',
+      email: 'a@b.c',
+      password: 'h',
+      name: 'A',
+    } as User;
     const res = await controller['generateTokenPair']({
-      id: 7,
+      id: '7',
       email: 'a@b.c',
       name: 'A',
     });

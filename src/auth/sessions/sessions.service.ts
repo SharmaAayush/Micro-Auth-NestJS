@@ -16,7 +16,7 @@ export class SessionsService {
   ) {}
 
   async create(
-    userId: number,
+    userId: string,
     jti: string,
     meta: SessionCreateMeta,
     expiresAt: Date,
@@ -35,14 +35,14 @@ export class SessionsService {
     return this.sessionsRepository.findOne({ where: { id: jti } });
   }
 
-  async listForUser(userId: number): Promise<Session[]> {
+  async listForUser(userId: string): Promise<Session[]> {
     return this.sessionsRepository.find({
       where: { userId },
       order: { createdAt: 'DESC' },
     });
   }
 
-  async deleteByJti(jti: string, userId: number): Promise<boolean> {
+  async deleteByJti(jti: string, userId: string): Promise<boolean> {
     const row = await this.sessionsRepository.findOne({ where: { id: jti } });
     if (!row || row.userId !== userId) {
       return false;
@@ -51,7 +51,7 @@ export class SessionsService {
     return true;
   }
 
-  async deleteAllForUser(userId: number, exceptJti?: string): Promise<number> {
+  async deleteAllForUser(userId: string, exceptJti?: string): Promise<number> {
     const qb = this.sessionsRepository
       .createQueryBuilder()
       .delete()

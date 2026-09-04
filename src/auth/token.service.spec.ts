@@ -40,7 +40,7 @@ describe('TokenService', () => {
     service = module.get<TokenService>(TokenService);
   });
 
-  const user = { id: 7, email: 'a@b.c', name: 'A' };
+  const user = { id: '7', email: 'a@b.c', name: 'A' };
 
   it('generateAccessToken signs with sub, email, and the given jti', async () => {
     jwt.signAsync.mockResolvedValue('access.jwt');
