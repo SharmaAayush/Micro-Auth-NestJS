@@ -33,6 +33,34 @@ describe('AuthController (e2e)', () => {
     return res.body.accessToken;
   };
 
+  describe('Input validation', () => {
+    it('rejects a register request with a short password (400)', () => {
+      return request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email: 'a@b.c', password: 'short', name: 'X' })
+        .expect(400);
+    });
+
+    it('rejects a register request with a non-email email (400)', () => {
+      return request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email: 'not-an-email', password: 'longenough', name: 'X' })
+        .expect(400);
+    });
+
+    it('rejects a register request with unknown fields (400)', () => {
+      return request(app.getHttpServer())
+        .post('/auth/register')
+        .send({
+          email: 'a@b.c',
+          password: 'longenough',
+          name: 'X',
+          extra: 1,
+        })
+        .expect(400);
+    });
+  });
+
   describe('Validate endpoint', () => {
     it('returns 401 when no token is provided', () => {
       return request(app.getHttpServer()).get('/auth/validate').expect(401);

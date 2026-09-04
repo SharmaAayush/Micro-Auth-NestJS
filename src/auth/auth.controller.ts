@@ -19,15 +19,11 @@ import { getClientIp } from './sessions/client-ip.util';
 import { Session } from './sessions/session.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
 
 interface AuthRequest extends ExpressRequest {
   user: LoginUser & { jti: string };
-}
-
-interface RegisterDto {
-  email: string;
-  password: string;
-  name?: string;
 }
 
 interface RefreshTokenCookie {
@@ -184,7 +180,11 @@ export class AuthController {
 
   @Post('login')
   @UseGuards(AuthGuard('local'))
-  async login(@Req() req: AuthRequest, @Res() res: Response) {
+  async login(
+    @Body() _loginDto: LoginDto,
+    @Req() req: AuthRequest,
+    @Res() res: Response,
+  ) {
     const user = req.user;
     const loginUser: LoginUser = {
       email: user.email,
