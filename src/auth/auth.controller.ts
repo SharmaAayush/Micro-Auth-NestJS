@@ -7,6 +7,8 @@ import {
   Body,
   Req,
   Get,
+  HttpException,
+  HttpCode,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { randomUUID } from 'node:crypto';
@@ -81,10 +83,11 @@ export class AuthController {
   }
 
   @Post('register')
+  @HttpCode(HttpStatus.OK)
   async register(
     @Body() registerDto: RegisterDto,
     @Req() req: Request,
-    @Res() res: Response,
+    @Res({ passthrough: true }) res: Response,
   ) {
     const { email, password, name } = registerDto;
 
@@ -104,26 +107,32 @@ export class AuthController {
       pair.refreshExpiresAt,
     );
 
-    return res.status(HttpStatus.OK).json({ accessToken: pair.accessToken });
+    return { accessToken: pair.accessToken };
   }
 
   @Post('refresh-token')
-  async refreshToken(@Req() req: Request, @Res() res: Response) {
+  @HttpCode(HttpStatus.OK)
+  async refreshToken(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const refreshToken = (req as Request & { cookies: Record<string, string | undefined> }).cookies?.refreshToken;
 
     if (!refreshToken) {
-      return res
-        .status(HttpStatus.UNAUTHORIZED)
-        .json({ message: 'Refresh token not provided' });
+      throw new HttpException(
+        { message: 'Refresh token not provided' },
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     let payload: TokenPayload;
     try {
       payload = await this.tokenService.verifyRefreshToken(refreshToken);
     } catch {
-      return res
-        .status(HttpStatus.UNAUTHORIZED)
-        .json({ message: 'Invalid or expired refresh token' });
+      throw new HttpException(
+        { message: 'Invalid or expired refresh token' },
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     // Reuse-detection: if no session row exists for this jti, the refresh
@@ -135,16 +144,18 @@ export class AuthController {
       if (userForRevoke) {
         await this.sessionsService.deleteAllForUser(userForRevoke.id);
       }
-      return res
-        .status(HttpStatus.UNAUTHORIZED)
-        .json({ message: 'Refresh token reuse detected' });
+      throw new HttpException(
+        { message: 'Refresh token reuse detected' },
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     const user = await this.authService.findByEmail(payload.email);
     if (!user) {
-      return res
-        .status(HttpStatus.UNAUTHORIZED)
-        .json({ message: 'Invalid refresh token' });
+      throw new HttpException(
+        { message: 'Invalid refresh token' },
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     const loginUser: LoginUser = {
@@ -169,15 +180,16 @@ export class AuthController {
       await manager.save(newSession);
     });
 
-    return res.status(HttpStatus.OK).json({ accessToken: pair.accessToken });
+    return { accessToken: pair.accessToken };
   }
 
   @Post('login')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('local'))
   async login(
     @Body() _loginDto: LoginDto,
     @Req() req: Request & { user: LoginUser },
-    @Res() res: Response,
+    @Res({ passthrough: true }) res: Response,
   ) {
     const user = req.user;
     const loginUser: LoginUser = {
@@ -195,7 +207,7 @@ export class AuthController {
       pair.refreshExpiresAt,
     );
 
-    return res.status(HttpStatus.OK).json({ accessToken: pair.accessToken });
+    return { accessToken: pair.accessToken };
   }
 
   @Get('validate')
