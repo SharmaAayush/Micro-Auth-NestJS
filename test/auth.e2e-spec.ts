@@ -6,10 +6,12 @@ import { Repository } from 'typeorm';
 import cookieParser from 'cookie-parser';
 import { AppModule } from '../src/app.module';
 import { Session } from '../src/auth/sessions/session.entity';
+import { User } from '../src/auth/users.entity';
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication;
   let sessionsRepository: Repository<Session>;
+  let usersRepository: Repository<User>;
 
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -30,6 +32,20 @@ describe('AuthController (e2e)', () => {
     sessionsRepository = moduleFixture.get<Repository<Session>>(
       getRepositoryToken(Session),
     );
+    usersRepository = moduleFixture.get<Repository<User>>(
+      getRepositoryToken(User),
+    );
+
+    // Clear both tables so each test starts from a clean DB state.
+    // Session is cleared first because Session.userId FKs into User;
+    // clearing User first would violate the FK constraint.
+    // We use createQueryBuilder().delete() instead of repository.clear()
+    // because clear() issues TRUNCATE, which fails on a parent table when
+    // a child table has an FK referencing it even after the child is
+    // emptied. createQueryBuilder().delete() issues DELETE, which respects
+    // the FK order naturally.
+    await sessionsRepository.createQueryBuilder().delete().execute();
+    await usersRepository.createQueryBuilder().delete().execute();
   });
 
   const registerAndGetAccessToken = async (): Promise<string> => {
