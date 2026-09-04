@@ -9,6 +9,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { TokenService } from './token.service';
 import { PassportModule } from '@nestjs/passport';
 import { User } from './users.entity';
+import { Session } from './sessions/session.entity';
 import { SessionsModule } from './sessions/sessions.module';
 
 @Module({
@@ -22,7 +23,7 @@ import { SessionsModule } from './sessions/sessions.module';
         signOptions: {},
       }),
     }),
-    TypeOrmModule.forFeature([User]),
+    TypeOrmModule.forFeature([User, Session]),
     SessionsModule,
   ],
   controllers: [AuthController],
