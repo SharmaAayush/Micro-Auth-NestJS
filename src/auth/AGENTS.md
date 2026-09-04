@@ -65,4 +65,8 @@ The JWT strategy consults `SessionsService.findByJti(payload.jti)`. If no row ex
 
 ## Response envelope
 
-`EnvelopeModule` lives in `src/common/transform/response/` and is `@Global()`. Every successful controller response is wrapped in `{ data: ... }` by default via the global `EnvelopeInterceptor`. Use `@SkipEnvelope()` on a controller class to opt out (current example: `HealthController`). Use `@SetMeta(key, value)` on a handler to merge extra fields into the envelope as a `meta` object.
+- `EnvelopeModule` lives in `src/common/transform/response/` and is `@Global()`.
+- By default, every successful auth/sessions controller response is wrapped in `{ data: ... }` by the global `EnvelopeInterceptor`.
+- Apply `@SkipEnvelope()` at the controller class level to opt out. The auth controllers do NOT opt out.
+- Apply `@SetMeta(key, value)` at the handler level to merge extra fields into the envelope as a `meta` object.
+- Error responses thrown via `HttpException` (e.g., invalid refresh token, reuse detection) are NOT wrapped in the envelope.
