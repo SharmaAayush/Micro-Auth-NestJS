@@ -48,7 +48,7 @@ export class AuthController {
       this.tokenService.generateAccessToken(loginUser, jti),
       this.tokenService.generateRefreshToken(loginUser, jti),
     ]);
-    const refreshExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const refreshExpiresAt = this.tokenService.getExpiryFromToken(refreshToken);
     return { accessToken, refreshToken, jti, refreshExpiresAt };
   }
 
@@ -156,13 +156,14 @@ export class AuthController {
     this.setRefreshTokenCookie(res, pair.refreshToken);
 
     // Transaction: delete the old session row, create the new one.
+    const requestMeta = this.getRequestMeta(req);
     await this.sessionsRepository.manager.transaction(async (manager) => {
       await manager.delete(Session, payload.jti);
       const newSession = manager.create(Session, {
         id: pair.jti,
         userId: user.id,
-        userAgent: this.getRequestMeta(req).userAgent,
-        ipAddress: this.getRequestMeta(req).ipAddress,
+        userAgent: requestMeta.userAgent,
+        ipAddress: requestMeta.ipAddress,
         expiresAt: pair.refreshExpiresAt,
       });
       await manager.save(newSession);
