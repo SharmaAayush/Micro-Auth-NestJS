@@ -5,10 +5,10 @@ import { LoginUser } from './login-user.interface';
 
 export interface TokenPayload {
   email: string;
-  sub: string; // user id
-  jti: string; // session id
-  exp?: number; // expiration time
-  iat?: number; // issued at
+  sub: string;
+  jti: string;
+  exp?: number;
+  iat?: number;
 }
 
 @Injectable()
@@ -46,25 +46,29 @@ export class TokenService {
     );
   }
 
-  async verifyAccessToken(token: string): Promise<TokenPayload> {
+  getExpiryFromToken(jwt: string): Date {
+    const payload = this.jwtService.decode(jwt) as TokenPayload | null;
+    if (!payload?.exp) {
+      throw new Error('Refresh token is missing the exp claim');
+    }
+    return new Date(payload.exp * 1000);
+  }
+
+  private async verify(token: string, kind: 'access' | 'refresh'): Promise<TokenPayload> {
     try {
-      const payload = await this.jwtService.verifyAsync<TokenPayload>(token, {
+      return await this.jwtService.verifyAsync<TokenPayload>(token, {
         secret: this.configService.get<string>('app.jwt.secret'),
       });
-      return payload;
     } catch {
-      throw new Error('Invalid or expired access token');
+      throw new Error(`Invalid or expired ${kind} token`);
     }
   }
 
-  async verifyRefreshToken(token: string): Promise<TokenPayload> {
-    try {
-      const payload = await this.jwtService.verifyAsync<TokenPayload>(token, {
-        secret: this.configService.get<string>('app.jwt.secret'),
-      });
-      return payload;
-    } catch {
-      throw new Error('Invalid or expired refresh token');
-    }
+  verifyAccessToken(token: string): Promise<TokenPayload> {
+    return this.verify(token, 'access');
+  }
+
+  verifyRefreshToken(token: string): Promise<TokenPayload> {
+    return this.verify(token, 'refresh');
   }
 }
