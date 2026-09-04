@@ -53,7 +53,7 @@ describe('AuthController (e2e)', () => {
       .post('/auth/register')
       .send({ email: 'user@example.com', password: 'password123', name: 'U' });
     expect(res.status).toBe(200);
-    return res.body.accessToken;
+    return res.body.data.accessToken;
   };
 
   describe('Input validation', () => {
@@ -116,17 +116,16 @@ describe('AuthController (e2e)', () => {
 
   describe('Refresh token rotation', () => {
     it('returns a new access token and rotates the session', async () => {
-      const firstAccessToken = await registerAndGetAccessToken();
-      const beforeCount = await sessionsRepository.count();
-
-      // Cookies: the supertest agent handles them across requests.
       const agent = request.agent(app.getHttpServer());
-      await agent
+      const reg = await agent
         .post('/auth/register')
         .send({ email: 'rot@example.com', password: 'pw1234567', name: 'R' });
+      expect(reg.status).toBe(200);
+      const firstAccessToken = reg.body.data.accessToken;
+      const beforeCount = await sessionsRepository.count();
 
       const refreshRes = await agent.post('/auth/refresh-token').expect(200);
-      const newAccessToken = refreshRes.body.accessToken;
+      const newAccessToken = refreshRes.body.data.accessToken;
       expect(newAccessToken).toBeDefined();
       expect(newAccessToken).not.toBe(firstAccessToken);
 
@@ -142,7 +141,23 @@ describe('AuthController (e2e)', () => {
 
       // Session count for the user is still 1.
       const afterCount = await sessionsRepository.count();
-      expect(afterCount).toBe(beforeCount + 1);
+      expect(afterCount).toBe(beforeCount);
+    });
+  });
+
+  describe('Session listing envelope', () => {
+    it('GET /auth/sessions returns the array inside data', async () => {
+      const agent = request.agent(app.getHttpServer());
+      const reg = await agent
+        .post('/auth/register')
+        .send({ email: 'env@example.com', password: 'pw1234567', name: 'E' });
+      const accessToken = reg.body.data.accessToken;
+      const list = await agent
+        .get('/auth/sessions')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+      expect(Array.isArray(list.body.data)).toBe(true);
+      expect(list.body.data.length).toBe(1);
     });
   });
 
