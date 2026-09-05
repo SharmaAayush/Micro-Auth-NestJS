@@ -16,6 +16,54 @@ npm run start:dev
 
 The server listens on `PORT` (default `3000`). The interactive API docs are at `http://localhost:3000/api/docs` whenever `ENABLE_API_DOCS=true` is set (the default in `.env.example`).
 
+> Prefer containers? Skip the local Node/Postgres install and use the [Container](#container) section below.
+
+## Container
+
+The repo ships with a multi-stage `Dockerfile`, a `docker-compose.yml` for local development, and a GitHub Actions workflow that publishes the image to GitHub Container Registry (GHCR) on every push to `master`.
+
+### Build locally
+
+```bash
+docker build -t micro-auth-nestjs:dev .
+docker run --rm -p 3000:3000 --env-file .env micro-auth-nestjs:dev
+```
+
+The image runs as the non-root `node` user and uses `dumb-init` so SIGTERM is forwarded to the Node process.
+
+### Local stack (app + Postgres + pgAdmin)
+
+`docker-compose.yml` brings up the app, a Postgres 16 database, and pgAdmin on a shared network.
+
+```bash
+# 1. Make sure .env has DB_USERNAME, DB_PASSWORD, DB_DATABASE set
+cp .env.example .env
+
+# 2. Start the stack
+docker compose up -d --build
+
+# 3. Apply database migrations once
+docker compose run --rm app npm run migration:run
+
+# 4. Use it
+#    App:    http://localhost:3000
+#    pgAdmin: http://localhost:5050  (default login: admin@local.dev / admin)
+```
+
+The compose file overrides `DB_HOST` to `postgres` so the app can reach the database by service name. Database data persists in the named volume `pgdata`; run `docker compose down -v` to wipe it.
+
+To stop the stack: `docker compose down`.
+
+### Pulling the published image
+
+The CI workflow on `master` publishes the image to GHCR:
+
+```bash
+docker pull ghcr.io/sharmaaayush/micro-auth-nestjs:latest
+```
+
+Tags produced by CI: `master`, `sha-<short-sha>`, and `latest` (the last only on the default branch). The first build will publish the package as **private** — flip it to public in the package's settings on GitHub if you want it pullable without authentication.
+
 ## Scripts
 
 Run with `npm run <name>`.
