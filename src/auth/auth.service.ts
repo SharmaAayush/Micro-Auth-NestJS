@@ -22,6 +22,7 @@ export class AuthService {
       if (isPasswordValid) {
         // Remove password from returned user object for security
         const { password, ...result } = user;
+        void password;
         return result;
       }
     }

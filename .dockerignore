@@ -1,0 +1,44 @@
+# Build artefacts
+node_modules
+dist
+coverage
+build
+
+# VCS
+.git
+.gitignore
+.gitattributes
+
+# GitHub / CI
+.github
+.gitlab-ci.yml
+
+# Local env files (keep .env.example for documentation)
+.env
+.env.*
+!.env.example
+
+# IDEs / editors
+.vscode
+.idea
+*.swp
+.DS_Store
+
+# Logs
+*.log
+logs
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+
+# Tests
+test
+**/*.spec.ts
+**/*.e2e-spec.ts
+**/jest-e2e.json
+
+# Project meta / docs (not needed at runtime)
+agents
+docs
+README.md
+LICENSE

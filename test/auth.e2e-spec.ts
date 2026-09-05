@@ -4,12 +4,16 @@ import request from 'supertest';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import cookieParser from 'cookie-parser';
+import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
 import { Session } from '../src/auth/sessions/session.entity';
 import { User } from '../src/auth/users.entity';
 
+type AuthEnvelope = { data: { accessToken: string; refreshToken: string } };
+type SessionsEnvelope = { data: unknown[] };
+
 describe('AuthController (e2e)', () => {
-  let app: INestApplication;
+  let app: INestApplication<App>;
   let sessionsRepository: Repository<Session>;
   let usersRepository: Repository<User>;
 
@@ -53,7 +57,8 @@ describe('AuthController (e2e)', () => {
       .post('/auth/register')
       .send({ email: 'user@example.com', password: 'password123', name: 'U' });
     expect(res.status).toBe(200);
-    return res.body.data.accessToken;
+    const body = res.body as AuthEnvelope;
+    return body.data.accessToken;
   };
 
   describe('Input validation', () => {
@@ -121,11 +126,13 @@ describe('AuthController (e2e)', () => {
         .post('/auth/register')
         .send({ email: 'rot@example.com', password: 'pw1234567', name: 'R' });
       expect(reg.status).toBe(200);
-      const firstAccessToken = reg.body.data.accessToken;
+      const regBody = reg.body as AuthEnvelope;
+      const firstAccessToken = regBody.data.accessToken;
       const beforeCount = await sessionsRepository.count();
 
       const refreshRes = await agent.post('/auth/refresh-token').expect(200);
-      const newAccessToken = refreshRes.body.data.accessToken;
+      const refreshBody = refreshRes.body as AuthEnvelope;
+      const newAccessToken = refreshBody.data.accessToken;
       expect(newAccessToken).toBeDefined();
       expect(newAccessToken).not.toBe(firstAccessToken);
 
@@ -151,13 +158,15 @@ describe('AuthController (e2e)', () => {
       const reg = await agent
         .post('/auth/register')
         .send({ email: 'env@example.com', password: 'pw1234567', name: 'E' });
-      const accessToken = reg.body.data.accessToken;
+      const regBody = reg.body as AuthEnvelope;
+      const accessToken = regBody.data.accessToken;
       const list = await agent
         .get('/auth/sessions')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
-      expect(Array.isArray(list.body.data)).toBe(true);
-      expect(list.body.data.length).toBe(1);
+      const listBody = list.body as SessionsEnvelope;
+      expect(Array.isArray(listBody.data)).toBe(true);
+      expect(listBody.data.length).toBe(1);
     });
   });
 

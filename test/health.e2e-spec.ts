@@ -1,10 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
 
 describe('HealthController (e2e)', () => {
-  let app: INestApplication;
+  let app: INestApplication<App>;
 
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -18,8 +19,9 @@ describe('HealthController (e2e)', () => {
     const res = await request(app.getHttpServer())
       .get('/health/livez')
       .expect(200);
-    expect(res.body).toEqual({ status: 'alive' });
-    expect(res.body.data).toBeUndefined();
+    const body = res.body as { status: string; data?: unknown };
+    expect(body).toEqual({ status: 'alive' });
+    expect(body.data).toBeUndefined();
   });
 
   afterEach(async () => {

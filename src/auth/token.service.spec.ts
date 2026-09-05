@@ -17,7 +17,7 @@ describe('TokenService', () => {
         try {
           return JSON.parse(
             Buffer.from(parts[1], 'base64url').toString('utf8'),
-          );
+          ) as unknown;
         } catch {
           return null;
         }

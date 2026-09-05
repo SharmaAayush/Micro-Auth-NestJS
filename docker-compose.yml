@@ -1,0 +1,89 @@
+# Local development stack: the NestJS app, a Postgres database, and pgAdmin
+# for inspecting the database in a browser.
+#
+# Usage:
+#   1. Copy .env.example to .env and fill in DB_USERNAME / DB_PASSWORD / DB_DATABASE.
+#   2. docker compose up -d --build
+#   3. Apply migrations once:
+#        docker compose run --rm app npm run migration:run
+#   4. Open http://localhost:3000 (app) and http://localhost:5050 (pgAdmin).
+#
+# Notes:
+# - The app's DB_HOST is overridden to "postgres" and DB_PORT to "5432" so the
+#   app reaches Postgres via the compose network on its in-container port. Any
+#   DB_PORT value in .env is ignored while running through compose - inside the
+#   network the port is always 5432, and Postgres is not exposed to the host.
+# - Database credentials and database name come from .env.
+# - Data persists in the named volume `pgdata`. Run `docker compose down -v` to wipe it.
+
+name: micro-auth-nestjs
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: micro-auth-nestjs:local
+    container_name: micro-auth-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Override DB_HOST so the app reaches Postgres via the compose network.
+      DB_HOST: postgres
+      # Force the in-network port to 5432; the host-side port (DB_PORT from .env)
+      # is only relevant for the host -> container port mapping below.
+      DB_PORT: "5432"
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health/livez"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - appnet
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: micro-auth-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:?DB_USERNAME must be set in .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
+      POSTGRES_DB: ${DB_DATABASE:?DB_DATABASE must be set in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - appnet
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: micro-auth-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@local.dev}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      PGADMIN_LISTEN_PORT: 80
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - appnet
+
+volumes:
+  pgdata:
+
+networks:
+  appnet:
+    driver: bridge
