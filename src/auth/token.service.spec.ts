@@ -80,4 +80,46 @@ describe('TokenService', () => {
       );
     });
   });
+
+  describe('verify', () => {
+    it('verifyAccessToken calls verifyAsync with the configured secret and returns the payload', async () => {
+      const payload = { sub: '7', email: 'a@b.c', jti: 'j' };
+      jwt.verifyAsync.mockResolvedValue(payload);
+
+      const result = await service.verifyAccessToken('access.jwt');
+
+      expect(jwt.verifyAsync).toHaveBeenCalledWith('access.jwt', {
+        secret: 'secret',
+      });
+      expect(result).toBe(payload);
+    });
+
+    it('verifyRefreshToken calls verifyAsync with the configured secret and returns the payload', async () => {
+      const payload = { sub: '7', email: 'a@b.c', jti: 'j' };
+      jwt.verifyAsync.mockResolvedValue(payload);
+
+      const result = await service.verifyRefreshToken('refresh.jwt');
+
+      expect(jwt.verifyAsync).toHaveBeenCalledWith('refresh.jwt', {
+        secret: 'secret',
+      });
+      expect(result).toBe(payload);
+    });
+
+    it('rethrows as "Invalid or expired access token" when verifyAsync rejects', async () => {
+      jwt.verifyAsync.mockRejectedValue(new Error('jwt expired'));
+
+      await expect(service.verifyAccessToken('bad')).rejects.toThrow(
+        'Invalid or expired access token',
+      );
+    });
+
+    it('rethrows as "Invalid or expired refresh token" when verifyAsync rejects', async () => {
+      jwt.verifyAsync.mockRejectedValue(new Error('jwt expired'));
+
+      await expect(service.verifyRefreshToken('bad')).rejects.toThrow(
+        'Invalid or expired refresh token',
+      );
+    });
+  });
 });
