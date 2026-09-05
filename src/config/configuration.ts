@@ -17,4 +17,7 @@ export default registerAs('app', () => ({
     synchronize: process.env.DB_SYNCHRONIZE === 'true' ? true : false,
     logging: process.env.DB_LOGGING === 'true' ? true : false,
   },
+  docs: {
+    enabled: process.env.ENABLE_API_DOCS === 'true',
+  },
 }));

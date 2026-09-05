@@ -47,7 +47,7 @@ export class TokenService {
   }
 
   getExpiryFromToken(jwt: string): Date {
-    const payload = this.jwtService.decode(jwt) as TokenPayload | null;
+    const payload = this.jwtService.decode(jwt);
     if (!payload?.exp) {
       throw new Error('Refresh token is missing the exp claim');
     }

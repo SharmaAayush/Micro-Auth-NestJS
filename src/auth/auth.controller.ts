@@ -13,6 +13,14 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { randomUUID } from 'node:crypto';
 import type { Request, Response } from 'express';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiCookieAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { TokenService, TokenPayload } from './token.service';
 import { LoginUser } from './login-user.interface';
 import { AuthService } from './auth.service';
@@ -23,6 +31,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { AccessTokenResponseDto } from './dto/auth-response.dto';
 import { RequestMeta } from './types';
 
 interface TokenPairResult {
@@ -32,6 +41,7 @@ interface TokenPairResult {
   refreshExpiresAt: Date;
 }
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -81,6 +91,26 @@ export class AuthController {
 
   @Post('register')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Register a new user and start a session',
+    description:
+      'Creates a user, issues an access token, and sets the refresh token as an HTTP-only cookie. On success the body is `{ data: { accessToken } }` and the response sets a `refreshToken` cookie. Use that cookie on POST /auth/refresh-token to rotate it.',
+  })
+  @ApiBody({ type: RegisterDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'User created. Body: `{ data: AccessTokenResponseDto }`.',
+    type: AccessTokenResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description:
+      'Validation failed (bad email, short password, unknown field).',
+  })
+  @ApiResponse({
+    status: HttpStatus.CONFLICT,
+    description: 'A user with this email already exists.',
+  })
   async register(
     @Body() registerDto: RegisterDto,
     @Req() req: Request,
@@ -109,6 +139,22 @@ export class AuthController {
 
   @Post('refresh-token')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Rotate the refresh token and return a new access token',
+    description:
+      'Reads the `refreshToken` HTTP-only cookie, verifies it, deletes the old session row, creates a new one, and sets a new `refreshToken` cookie. If the JWT is valid but the session row is missing (replay of a previously rotated or revoked token), all sessions for the user are revoked and 401 is returned.',
+  })
+  @ApiCookieAuth('refresh-cookie')
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Token rotated. Body: `{ data: AccessTokenResponseDto }`.',
+    type: AccessTokenResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description:
+      'Refresh cookie missing, invalid/expired, or reuse detected (all sessions for the user were revoked).',
+  })
   async refreshToken(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
@@ -185,6 +231,25 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('local'))
+  @ApiOperation({
+    summary: 'Log in with email and password',
+    description:
+      'Validates the credentials via the local strategy, issues an access token, and sets the refresh token as an HTTP-only cookie.',
+  })
+  @ApiBody({ type: LoginDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Login succeeded. Body: `{ data: AccessTokenResponseDto }`.',
+    type: AccessTokenResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Validation failed (bad email, missing fields).',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Email not found or password did not match.',
+  })
   async login(
     @Body() _loginDto: LoginDto,
     @Req() req: Request & { user: LoginUser },
@@ -211,6 +276,21 @@ export class AuthController {
 
   @Get('validate')
   @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({
+    summary: 'Check that the current access token is valid',
+    description:
+      'Returns 200 if the Bearer access token is signed correctly AND a corresponding session row exists (and has not expired). Returns 401 otherwise. The body on success is the empty envelope `{ data: null }`.',
+  })
+  @ApiBearerAuth('bearer')
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Token and session are valid. Body: `{ data: null }`.',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description:
+      'Token missing, invalid, expired, or the session row was deleted/expired.',
+  })
   validate() {
     // Guard handles validation - if we reach here, token + session are valid
   }
