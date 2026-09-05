@@ -4,8 +4,6 @@ import { EnvelopeInterceptor } from './envelope.interceptor';
 
 @Global()
 @Module({
-  providers: [
-    { provide: APP_INTERCEPTOR, useClass: EnvelopeInterceptor },
-  ],
+  providers: [{ provide: APP_INTERCEPTOR, useClass: EnvelopeInterceptor }],
 })
 export class EnvelopeModule {}

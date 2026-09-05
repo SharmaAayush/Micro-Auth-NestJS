@@ -23,11 +23,10 @@ export class EnvelopeInterceptor implements NestInterceptor {
       return next.handle();
     }
     return next.handle().pipe(
-      map((value) => {
-        const meta = this.reflector.getAllAndOverride<Record<string, unknown> | undefined>(
-          SET_META_KEY,
-          [context.getHandler(), context.getClass()],
-        );
+      map((value: unknown) => {
+        const meta = this.reflector.getAllAndOverride<
+          Record<string, unknown> | undefined
+        >(SET_META_KEY, [context.getHandler(), context.getClass()]);
         return meta ? { data: value, meta } : { data: value };
       }),
     );

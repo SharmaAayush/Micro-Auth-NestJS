@@ -194,9 +194,7 @@ describe('SessionsService', () => {
       qb.execute.mockResolvedValue({ affected: 0, raw: [] });
       repo.createQueryBuilder.mockReturnValue(qb);
 
-      await service.deleteAllForUser(
-        '00000000-0000-0000-0000-000000000042',
-      );
+      await service.deleteAllForUser('00000000-0000-0000-0000-000000000042');
 
       expect(qb.andWhere).not.toHaveBeenCalled();
     });

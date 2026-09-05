@@ -15,7 +15,9 @@ describe('HealthController (e2e)', () => {
   });
 
   it('GET /health/livez returns the raw body (no envelope)', async () => {
-    const res = await request(app.getHttpServer()).get('/health/livez').expect(200);
+    const res = await request(app.getHttpServer())
+      .get('/health/livez')
+      .expect(200);
     expect(res.body).toEqual({ status: 'alive' });
     expect(res.body.data).toBeUndefined();
   });

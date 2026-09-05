@@ -54,7 +54,10 @@ export class TokenService {
     return new Date(payload.exp * 1000);
   }
 
-  private async verify(token: string, kind: 'access' | 'refresh'): Promise<TokenPayload> {
+  private async verify(
+    token: string,
+    kind: 'access' | 'refresh',
+  ): Promise<TokenPayload> {
     try {
       return await this.jwtService.verifyAsync<TokenPayload>(token, {
         secret: this.configService.get<string>('app.jwt.secret'),
