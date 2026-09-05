@@ -9,14 +9,20 @@ import { User } from './users.entity';
 
 describe('AuthController.generateTokenPair', () => {
   let controller: AuthController;
-  let tokenService: { generateAccessToken: jest.Mock; generateRefreshToken: jest.Mock; getExpiryFromToken: jest.Mock };
+  let tokenService: {
+    generateAccessToken: jest.Mock;
+    generateRefreshToken: jest.Mock;
+    getExpiryFromToken: jest.Mock;
+  };
   let sessionsService: { create: jest.Mock };
 
   beforeEach(async () => {
     tokenService = {
       generateAccessToken: jest.fn().mockResolvedValue('access.jwt'),
       generateRefreshToken: jest.fn().mockResolvedValue('refresh.jwt'),
-      getExpiryFromToken: jest.fn().mockReturnValue(new Date('2030-01-01T00:00:00Z')),
+      getExpiryFromToken: jest
+        .fn()
+        .mockReturnValue(new Date('2030-01-01T00:00:00Z')),
     };
     sessionsService = { create: jest.fn().mockResolvedValue(undefined) };
     const module: TestingModule = await Test.createTestingModule({
@@ -40,9 +46,9 @@ describe('AuthController.generateTokenPair', () => {
       name: 'A',
     } as User;
     const res = await controller['generateTokenPair']({
-      id: '7',
-      email: 'a@b.c',
-      name: 'A',
+      id: user.id,
+      email: user.email,
+      name: user.name as string,
     });
     expect(tokenService.getExpiryFromToken).toHaveBeenCalledWith('refresh.jwt');
     expect(res.refreshExpiresAt.toISOString()).toBe('2030-01-01T00:00:00.000Z');

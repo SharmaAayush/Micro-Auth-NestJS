@@ -38,7 +38,9 @@ export class ConvertUserIdToUuid1788523402630 implements MigrationInterface {
       `ALTER TABLE "user" DROP CONSTRAINT "PK_cace4a159ff9f2512dd42373760"`,
     );
     await queryRunner.query(`ALTER TABLE "user" DROP COLUMN "id"`);
-    await queryRunner.query(`ALTER TABLE "user" RENAME COLUMN "id_uuid" TO "id"`);
+    await queryRunner.query(
+      `ALTER TABLE "user" RENAME COLUMN "id_uuid" TO "id"`,
+    );
     await queryRunner.query(`ALTER TABLE "user" ADD PRIMARY KEY ("id")`);
 
     // 7. Re-add the FK with the new column type.
@@ -71,7 +73,9 @@ export class ConvertUserIdToUuid1788523402630 implements MigrationInterface {
     //    must drop the *current* name, not the original.
     await queryRunner.query(`ALTER TABLE "user" DROP CONSTRAINT "user_pkey"`);
     await queryRunner.query(`ALTER TABLE "user" DROP COLUMN "id"`);
-    await queryRunner.query(`ALTER TABLE "user" RENAME COLUMN "id_old" TO "id"`);
+    await queryRunner.query(
+      `ALTER TABLE "user" RENAME COLUMN "id_old" TO "id"`,
+    );
     await queryRunner.query(`ALTER TABLE "user" ADD PRIMARY KEY ("id")`);
 
     // 5. Cast session.user_id back to integer (regenerate; original ids are lost).

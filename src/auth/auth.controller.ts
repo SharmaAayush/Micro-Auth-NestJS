@@ -113,7 +113,9 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const refreshToken = (req as Request & { cookies: Record<string, string | undefined> }).cookies?.refreshToken;
+    const cookies = req.cookies as
+      Record<string, string | undefined> | undefined;
+    const refreshToken = cookies?.refreshToken;
 
     if (!refreshToken) {
       throw new HttpException(
