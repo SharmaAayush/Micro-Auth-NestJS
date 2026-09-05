@@ -1,7 +1,9 @@
 import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
 import { HealthService } from './health.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { SkipEnvelope } from '../common/transform/response/skip-envelope.decorator';
 
+@SkipEnvelope()
 @Controller('health')
 export class HealthController {
   // Local memory cache for health state

@@ -7,10 +7,12 @@ import {
   Body,
   Req,
   Get,
+  HttpException,
+  HttpCode,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { randomUUID } from 'node:crypto';
-import type { Request as ExpressRequest, Response } from 'express';
+import type { Request, Response } from 'express';
 import { TokenService, TokenPayload } from './token.service';
 import { LoginUser } from './login-user.interface';
 import { AuthService } from './auth.service';
@@ -19,20 +21,9 @@ import { getClientIp } from './sessions/client-ip.util';
 import { Session } from './sessions/session.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-
-interface AuthRequest extends ExpressRequest {
-  user: LoginUser & { jti: string };
-}
-
-interface RegisterDto {
-  email: string;
-  password: string;
-  name?: string;
-}
-
-interface RefreshTokenCookie {
-  refreshToken?: string;
-}
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
+import { RequestMeta } from './types';
 
 interface TokenPairResult {
   accessToken: string;
@@ -59,14 +50,11 @@ export class AuthController {
       this.tokenService.generateAccessToken(loginUser, jti),
       this.tokenService.generateRefreshToken(loginUser, jti),
     ]);
-    const refreshExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const refreshExpiresAt = this.tokenService.getExpiryFromToken(refreshToken);
     return { accessToken, refreshToken, jti, refreshExpiresAt };
   }
 
-  private getRequestMeta(req: ExpressRequest): {
-    userAgent: string | null;
-    ipAddress: string | null;
-  } {
+  private getRequestMeta(req: Request): RequestMeta {
     return {
       userAgent: req.headers['user-agent'] ?? null,
       ipAddress: getClientIp(req),
@@ -92,10 +80,11 @@ export class AuthController {
   }
 
   @Post('register')
+  @HttpCode(HttpStatus.OK)
   async register(
     @Body() registerDto: RegisterDto,
-    @Req() req: ExpressRequest,
-    @Res() res: Response,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
   ) {
     const { email, password, name } = registerDto;
 
@@ -115,26 +104,32 @@ export class AuthController {
       pair.refreshExpiresAt,
     );
 
-    return res.status(HttpStatus.OK).json({ accessToken: pair.accessToken });
+    return { accessToken: pair.accessToken };
   }
 
   @Post('refresh-token')
-  async refreshToken(@Req() req: ExpressRequest, @Res() res: Response) {
-    const refreshToken = (req.cookies as RefreshTokenCookie)?.refreshToken;
+  @HttpCode(HttpStatus.OK)
+  async refreshToken(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken = (req as Request & { cookies: Record<string, string | undefined> }).cookies?.refreshToken;
 
     if (!refreshToken) {
-      return res
-        .status(HttpStatus.UNAUTHORIZED)
-        .json({ message: 'Refresh token not provided' });
+      throw new HttpException(
+        { message: 'Refresh token not provided' },
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     let payload: TokenPayload;
     try {
       payload = await this.tokenService.verifyRefreshToken(refreshToken);
     } catch {
-      return res
-        .status(HttpStatus.UNAUTHORIZED)
-        .json({ message: 'Invalid or expired refresh token' });
+      throw new HttpException(
+        { message: 'Invalid or expired refresh token' },
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     // Reuse-detection: if no session row exists for this jti, the refresh
@@ -146,16 +141,18 @@ export class AuthController {
       if (userForRevoke) {
         await this.sessionsService.deleteAllForUser(userForRevoke.id);
       }
-      return res
-        .status(HttpStatus.UNAUTHORIZED)
-        .json({ message: 'Refresh token reuse detected' });
+      throw new HttpException(
+        { message: 'Refresh token reuse detected' },
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     const user = await this.authService.findByEmail(payload.email);
     if (!user) {
-      return res
-        .status(HttpStatus.UNAUTHORIZED)
-        .json({ message: 'Invalid refresh token' });
+      throw new HttpException(
+        { message: 'Invalid refresh token' },
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     const loginUser: LoginUser = {
@@ -167,24 +164,30 @@ export class AuthController {
     this.setRefreshTokenCookie(res, pair.refreshToken);
 
     // Transaction: delete the old session row, create the new one.
+    const requestMeta = this.getRequestMeta(req);
     await this.sessionsRepository.manager.transaction(async (manager) => {
       await manager.delete(Session, payload.jti);
       const newSession = manager.create(Session, {
         id: pair.jti,
         userId: user.id,
-        userAgent: this.getRequestMeta(req).userAgent,
-        ipAddress: this.getRequestMeta(req).ipAddress,
+        userAgent: requestMeta.userAgent,
+        ipAddress: requestMeta.ipAddress,
         expiresAt: pair.refreshExpiresAt,
       });
       await manager.save(newSession);
     });
 
-    return res.status(HttpStatus.OK).json({ accessToken: pair.accessToken });
+    return { accessToken: pair.accessToken };
   }
 
   @Post('login')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('local'))
-  async login(@Req() req: AuthRequest, @Res() res: Response) {
+  async login(
+    @Body() _loginDto: LoginDto,
+    @Req() req: Request & { user: LoginUser },
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const user = req.user;
     const loginUser: LoginUser = {
       email: user.email,
@@ -201,7 +204,7 @@ export class AuthController {
       pair.refreshExpiresAt,
     );
 
-    return res.status(HttpStatus.OK).json({ accessToken: pair.accessToken });
+    return { accessToken: pair.accessToken };
   }
 
   @Get('validate')

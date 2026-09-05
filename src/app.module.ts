@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import configuration from './config/configuration';
 import dataSource from './db/typeorm.config';
+import { EnvelopeModule } from './common/transform/response/envelope.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import dataSource from './db/typeorm.config';
     }),
     AuthModule,
     HealthModule,
+    EnvelopeModule,
   ],
   controllers: [AppController],
   providers: [AppService],
