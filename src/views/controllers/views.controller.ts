@@ -179,4 +179,55 @@ export class ViewsController {
     // Redirect to sessions page (or return JSON if preferred)
     return res.redirect('/sessions');
   }
+
+  @Get('sessions')
+  async showSessionsPage(@Req() req: Request, @Res() res: Response) {
+    // Validate session and get access token for internal service calls
+    const { accessToken, userId } = await this.validateAndGetAccessToken(req);
+
+    // Get sessions for the user
+    const sessions = await this.sessionsService.listForUser(userId);
+
+    // Render sessions page with session data
+    res.render('sessions', {
+      sessions: sessions.map(session => ({
+        id: session.id,
+        userAgent: session.userAgent || 'Unknown',
+        ipAddress: session.ipAddress || 'Unknown',
+        createdAt: session.createdAt,
+        expiresAt: session.expiresAt,
+      }))
+    });
+  }
+
+  // Helper method to validate session and get access token
+  private async validateAndGetAccessToken(req: Request): Promise<{ accessToken: string; userId: string }> {
+    const cookies = req.cookies as Record<string, string>;
+    const refreshToken = cookies?.refreshToken;
+
+    if (!refreshToken) {
+      throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+    }
+
+    try {
+      // Validate the refresh token
+      const payload = await this.tokenService.verifyRefreshToken(refreshToken);
+
+      // Check if session exists
+      const session = await this.sessionsService.findByJti(payload.jti);
+      if (!session) {
+        throw new HttpException('Invalid session', HttpStatus.UNAUTHORIZED);
+      }
+
+      // Generate access token for internal service calls
+      const accessToken = await this.tokenService.generateAccessToken(
+        { email: payload.email, name: '', id: payload.sub },
+        payload.jti
+      );
+
+      return { accessToken, userId: payload.sub };
+    } catch (error) {
+      throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+    }
+  }
 }
