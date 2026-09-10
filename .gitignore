@@ -2,6 +2,7 @@
 /dist
 /node_modules
 /build
+/src/views/assets/css/output.css
 
 # Logs
 logs

@@ -4,6 +4,7 @@ import { AuthService } from '../auth/auth.service';
 import { SessionsService } from '../auth/sessions/sessions.service';
 import { TokenService } from '../auth/token.service';
 import { LoginDto } from '../auth/dto/login.dto';
+import { RegisterDto } from '../auth/dto/register.dto';
 import { randomUUID } from 'node:crypto';
 import { RequestMeta } from '../auth/types';
 
@@ -143,5 +144,39 @@ export class ViewsController {
 
     // No valid session, render register page
     res.render('register');
+  }
+
+  @Post('register')
+  async registerAPI(@Body() registerDto: RegisterDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const { email, password, name } = registerDto;
+
+    // Create user
+    const user = await this.authService.createUser(email, password, name ?? '');
+    if (!user) {
+      throw new HttpException('Failed to create user', HttpStatus.BAD_REQUEST);
+    }
+
+    const loginUser: LoginUser = {
+      email: user.email,
+      name: user.name || '',
+      id: user.id,
+    };
+
+    // Generate token pair
+    const pair = await this.generateTokenPair(loginUser);
+
+    // Set refresh token cookie
+    this.setRefreshTokenCookie(res, pair.refreshToken);
+
+    // Create session record
+    await this.sessionsService.create(
+      user.id,
+      pair.jti,
+      this.getRequestMeta(req),
+      pair.refreshExpiresAt,
+    );
+
+    // Redirect to sessions page (or return JSON if preferred)
+    return res.redirect('/sessions');
   }
 }
