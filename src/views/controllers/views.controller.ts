@@ -119,4 +119,29 @@ export class ViewsController {
            req.socket.remoteAddress ??
            null;
   }
+
+  @Get('register')
+  async showRegisterPage(@Req() req: Request, @Res() res: Response) {
+    // Check if user already has a valid session
+    const cookies = req.cookies as Record<string, string>;
+    const refreshToken = cookies?.refreshToken;
+
+    if (refreshToken) {
+      try {
+        // Validate the refresh token
+        const payload = await this.tokenService.verifyRefreshToken(refreshToken);
+        // If valid, check if session exists
+        const session = await this.sessionsService.findByJti(payload.jti);
+        if (session) {
+          // User is already logged in, redirect to sessions page
+          return res.redirect('/sessions');
+        }
+      } catch (error) {
+        // Token invalid or expired, continue to show register page
+      }
+    }
+
+    // No valid session, render register page
+    res.render('register');
+  }
 }
