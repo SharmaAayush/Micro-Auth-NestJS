@@ -33,3 +33,4 @@ patterns and architecture decisions, not generic Node.js approaches.
 
 - [src/auth/AGENTS.md](src/auth/AGENTS.md) - Authentication module documentation
 - [src/db/AGENTS.md](src/db/AGENTS.md) - Database configuration and migration documentation
+- [src/views/AGENTS.md](src/views/AGENTS.md) - Views module documentation (server-rendered auth pages)

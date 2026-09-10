@@ -162,6 +162,21 @@ Authorizing requests from the UI:
 - For Bearer-protected routes, click **Authorize** at the top, paste an access token into the `bearer` field.
 - For the refresh-token route, the browser sends the cookie automatically; the Swagger UI does not need a separate auth step.
 
+## Server-Rendered Authentication Pages
+
+The application includes server-rendered authentication pages accessible at:
+
+- `GET /login` - Login page (redirects to `/sessions` if already authenticated)
+- `GET /register` - Registration page
+- `GET /sessions` - Session management page (requires authentication)
+
+These pages use Handlebars templating and Tailwind CSS for styling, implementing a Backend-for-Frontend (BFF) pattern where:
+
+- Access tokens are maintained in memory only (never exposed to frontend)
+- Refresh tokens are stored in HTTP-only cookies
+- Sessions survive page refreshes through server-side validation
+- Users can view and manage active sessions (revoke individual sessions or all other sessions)
+
 ## Environment variables
 
 All variables are read by `src/config/configuration.ts` and exposed under the `app.*` namespace.
