@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Req, Res, Body, HttpStatus, HttpException } from '@nestjs/common';
+import { Controller, Get, Post, Req, Res, Body, HttpStatus, HttpException, Param } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AuthService } from '../auth/auth.service';
 import { SessionsService } from '../auth/sessions/sessions.service';
@@ -229,5 +229,66 @@ export class ViewsController {
     } catch (error) {
       throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
     }
+  }
+
+  // API endpoint to get sessions as JSON
+  @Get('views/sessions')
+  async sessionsAPI(@Req() req: Request): Promise<{ sessions: Array<{ id: string; userAgent: string; ipAddress: string; createdAt: Date; expiresAt: Date }> }> {
+    // Validate session and get access token for internal service calls
+    const { accessToken, userId } = await this.validateAndGetAccessToken(req);
+
+    // Get sessions for the user
+    const sessions = await this.sessionsService.listForUser(userId);
+
+    return {
+      sessions: sessions.map(session => ({
+        id: session.id,
+        userAgent: session.userAgent || 'Unknown',
+        ipAddress: session.ipAddress || 'Unknown',
+        createdAt: session.createdAt,
+        expiresAt: session.expiresAt,
+      }))
+    };
+  }
+
+  // API endpoint to revoke a specific session
+  @Delete('views/sessions/:id')
+  async revokeSession(@Param('id') id: string, @Req() req: Request): Promise<{ success: boolean }> {
+    // Validate session
+    const { userId } = await this.validateAndGetAccessToken(req);
+
+    // Check if session belongs to user
+    const session = await this.sessionsService.findByJti(id);
+    if (!session || session.userId !== userId) {
+      throw new HttpException('Session not found or unauthorized', HttpStatus.NOT_FOUND);
+    }
+
+    // Delete the session
+    const result = await this.sessionsService.deleteByJti(id, userId);
+
+    return { success: result };
+  }
+
+  // API endpoint to revoke all sessions except current
+  @Delete('views/sessions')
+  async revokeAllExceptCurrent(@Req() req: Request): Promise<{ success: boolean; count: number }> {
+    // Validate session to get current session ID
+    const cookies = req.cookies as Record<string, string>;
+    const refreshToken = cookies?.refreshToken;
+
+    if (!refreshToken) {
+      throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+    }
+
+    const payload = await this.tokenService.verifyRefreshToken(refreshToken);
+    const currentJti = payload.jti;
+
+    // Get user ID from token
+    const userId = payload.sub;
+
+    // Delete all sessions except current
+    const count = await this.sessionsService.deleteAllForUser(userId, currentJti);
+
+    return { success: true, count };
   }
 }
