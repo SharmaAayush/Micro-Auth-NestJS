@@ -290,5 +290,9 @@ export class ViewsController {
     const count = await this.sessionsService.deleteAllForUser(userId, currentJti);
 
     return { success: true, count };
+  // Handle 404 - catch-all for undefined routes
+  @Get('*')
+  async handleNotFound(@Res() res: Response) {
+    res.status(404).render('404');
   }
 }
