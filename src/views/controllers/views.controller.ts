@@ -1,12 +1,14 @@
-import { Controller, Get, Post, Req, Res, Body, HttpStatus, HttpException, Param } from '@nestjs/common';
-import { Request, Response } from 'express';
-import { AuthService } from '../auth/auth.service';
-import { SessionsService } from '../auth/sessions/sessions.service';
-import { TokenService } from '../auth/token.service';
-import { LoginDto } from '../auth/dto/login.dto';
-import { RegisterDto } from '../auth/dto/register.dto';
+import { Controller, Get, Post, Req, Res, Body, HttpStatus, HttpException, Param, Delete } from '@nestjs/common';
+import type { Request, Response } from 'express';
+import { AuthService } from '../../auth/auth.service';
+import { SessionsService } from '../../auth/sessions/sessions.service';
+import { TokenService } from '../../auth/token.service';
+import { LoginDto } from '../../auth/dto/login.dto';
+import { RegisterDto } from '../../auth/dto/register.dto';
+import { LoginUser } from '../../auth/login-user.interface';
 import { randomUUID } from 'node:crypto';
-import { RequestMeta } from '../auth/types';
+import { RequestMeta } from '../../auth/types';
+import { getClientIp } from '../../auth/sessions/client-ip.util';
 
 @Controller()
 export class ViewsController {
@@ -109,18 +111,11 @@ export class ViewsController {
   private getRequestMeta(req: Request): RequestMeta {
     return {
       userAgent: req.headers['user-agent'] ?? null,
-      ipAddress: this.getClientIp(req),
+      ipAddress: getClientIp(req),
     };
   }
 
-  // Helper method to get client IP (copied from AuthController)
-  private getClientIp(req: Request): string | null {
-    return req.headers['x-forwarded-for']?.split(',')[0].trim() ??
-           req.headers['x-real-ip'] ??
-           req.socket.remoteAddress ??
-           null;
-  }
-
+  
   @Get('register')
   async showRegisterPage(@Req() req: Request, @Res() res: Response) {
     // Check if user already has a valid session
@@ -290,6 +285,8 @@ export class ViewsController {
     const count = await this.sessionsService.deleteAllForUser(userId, currentJti);
 
     return { success: true, count };
+  }
+
   // Handle 404 - catch-all for undefined routes
   @Get('*')
   async handleNotFound(@Res() res: Response) {

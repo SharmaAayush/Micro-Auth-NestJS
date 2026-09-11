@@ -28,5 +28,6 @@ import { SessionsModule } from './sessions/sessions.module';
   ],
   controllers: [AuthController],
   providers: [AuthService, LocalStrategy, JwtStrategy, TokenService],
+  exports: [AuthService, TokenService],
 })
 export class AuthModule {}

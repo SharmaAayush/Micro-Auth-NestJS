@@ -3,7 +3,31 @@
         <div class="flex-shrink-0">
             <div class="flex h-10 w-10 items-center justify-center bg-gray-200 rounded-lg">
                 <svg class="h-5 w-5 text-gray-600" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414 1.414L11.414 10l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
                 </svg>
             </div>
-        </div
+        </div>
+        <div>
+            <h3 class="text-sm font-medium text-gray-900">
+                {{this.userAgent}}
+            </h3>
+            <p class="text-sm text-gray-500 truncate">
+                {{this.ipAddress}}
+            </p>
+            <p class="text-xs text-gray-400">
+                Created: {{formatDate this.createdAt}} • Expires: {{formatDate this.expiresAt}}
+            </p>
+        </div>
+    </div>
+    <div class="flex items-center space-x-2">
+        <form action="/views/sessions/{{this.id}}" method="POST" class="inline">
+            <input type="hidden" name="_method" value="DELETE">
+            <input type="hidden" name="_csrf" value="{{csrfToken}}">
+            <button type="submit"
+                class="px-3 py-1 bg-red-500 text-white text-sm rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
+            >
+                Revoke
+            </button>
+        </form>
+    </div>
+</div>

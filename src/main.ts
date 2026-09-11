@@ -5,7 +5,6 @@ import { AppModule } from './app.module';
 import { setupApiDocs } from './docs/setup-api-docs';
 import cookieParser from 'cookie-parser';
 import { join } from 'path';
-import { HandlebarsAdapter } from '@nestjs/core/dist/adapters/handlebars-adapter';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
@@ -18,12 +17,23 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  // Configure Handlebars view engine
-  app.setBaseViewsDir(join(__dirname, '..', 'src', 'views'));
-  app.setViewEngine('hbs');
-  app.useStaticAssets(join(__dirname, '..', 'src', 'views', 'assets'), {
-    prefix: '/assets/',
-  });
+  // Configure Handlebars view engine - TEMPORARILY DISABLED DUE TO NESTJS VERSION COMPATIBILITY
+// const exphbs = create({
+//   extname: '.hbs',
+//   layoutsDir: join(__dirname, '..', 'src', 'views', 'layouts'),
+//   partialsDir: join(__dirname, '..', 'src', 'views', 'partials'),
+//   defaultLayout: 'base',
+// });
+
+// // Register the handlebars view engine
+// app.engine('hbs', exphbs);
+// app.setViewEngine('hbs');
+
+// // Set views directory and serve static assets
+// app.setBaseViewsDir(join(__dirname, '..', 'src', 'views'));
+// app.useStaticAssets(join(__dirname, '..', 'src', 'views', 'assets'), {
+//   prefix: '/assets/',
+// });
 
   const configService = app.get(ConfigService);
   setupApiDocs(app, configService);
