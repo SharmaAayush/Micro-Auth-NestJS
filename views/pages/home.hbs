@@ -1,0 +1,23 @@
+{{> partials/header }}
+
+<section class="hero">
+  <h1>{{headline}}</h1>
+  <p class="subhead">{{subhead}}</p>
+  <div class="cta-buttons">
+    <a href="#" class="primary-cta">{{primaryCtaText}}</a>
+    <a href="#" class="secondary-cta">{{secondaryCtaText}}</a>
+  </div>
+</section>
+
+<section class="features">
+  {{#each features}}
+    <div class="feature">
+      <h3>{{this.title}}</h3>
+      <p>{{this.description}}</p>
+    </div>
+  {{/each}}
+</section>
+
+{{> partials/trust-strip }}
+
+{{> partials/footer }}
