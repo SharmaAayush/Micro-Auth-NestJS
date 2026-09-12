@@ -6,6 +6,7 @@ import { setupApiDocs } from './docs/setup-api-docs';
 import cookieParser from 'cookie-parser';
 import { join } from 'path';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import hbs from 'hbs';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -14,6 +15,8 @@ async function bootstrap(): Promise<void> {
   // View engine setup - views at project root
   app.setBaseViewsDir(join(__dirname, '..', 'views'));
   app.setViewEngine('hbs');
+  // Partials setup
+  hbs.registerPartials(join(__dirname, '..', 'views'));
 
   // Static assets
   app.useStaticAssets(join(__dirname, '..', 'public'));
