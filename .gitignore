@@ -3,6 +3,7 @@
 /node_modules
 /build
 /public/css/app.css
+/public/assets/vendor
 
 # Logs
 logs
