@@ -19,8 +19,9 @@ RUN npm ci
 # Bring in the rest of the source and build
 COPY tsconfig.json tsconfig.build.json nest-cli.json ./
 COPY src ./src
-COPY views /views
-COPY public /public
+COPY scripts ./scripts
+COPY views ./views
+COPY public ./public
 RUN npm run build \
  && npm prune --omit=dev
 
@@ -39,6 +40,8 @@ USER node
 COPY --chown=node:node --from=builder /app/node_modules ./node_modules
 COPY --chown=node:node --from=builder /app/dist ./dist
 COPY --chown=node:node package.json ./
+COPY --chown=node:node --from=builder /app/dist/views ./views
+COPY --chown=node:node --from=builder /app/dist/public ./public
 
 EXPOSE 3000
 
