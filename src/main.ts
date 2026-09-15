@@ -18,6 +18,9 @@ async function bootstrap(): Promise<void> {
   // Partials setup
   hbs.registerPartials(join(__dirname, '..', 'views'));
 
+  // Configure default layout and partials options
+  app.set('view options', { layout: 'layouts/main' });
+
   // Static assets
   app.useStaticAssets(join(__dirname, '..', 'public'));
 
