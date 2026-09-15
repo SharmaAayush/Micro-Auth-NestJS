@@ -1,0 +1,4 @@
+@import "tailwindcss";
+
+/* Tell Tailwind to scan all .hbs files for classes */
+@source "./**/*.hbs";
