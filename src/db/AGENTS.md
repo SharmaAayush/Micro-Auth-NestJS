@@ -2,6 +2,14 @@
 
 This area contains the TypeORM database setup and migration files.
 
+## Context pointers
+
+Core concepts for the entire project are defined in the root `CONTEXT.md`. Key domain terms:
+
+- **Session** — Active JWT-bound login session, tracked in the `session` table with `jti` as primary key.
+- **Refresh Token Rotation** — The process of deleting and recreating a Session row on each `POST /auth/refresh-token`.
+- **Reuse Detection** — Security mechanism that detects stale refresh token replay and revokes all sessions for the user.
+
 ## Role
 
 Manages PostgreSQL database connection, entity scanning, and migration handling via TypeORM.

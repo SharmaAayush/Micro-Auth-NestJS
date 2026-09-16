@@ -6,6 +6,17 @@ This area contains the authentication infrastructure for the NestJS application.
 
 Handles user registration, login, JWT token generation/validation, and refresh token management via HTTP-only cookies.
 
+## Domain glossary
+
+Core concepts for this module are defined in the root `CONTEXT.md`. Key terms used here:
+
+- **Session** — `src/auth/sessions/session.entity.ts`. Represents an authenticated login, keyed by `jti`.
+- **JTI** — `src/auth/token.service.ts`. The `jti` claim in both access and refresh tokens; also the Session primary key.
+- **Reuse Detection** — `src/auth/auth.controller.ts:186-196`. Detects replay of rotated/revoked refresh tokens and revokes all sessions for the user.
+- **LoginUser** — `src/auth/login-user.interface.ts`. The user context passed to routes after JWT validation.
+- **RequestUser** — `src/auth/types.ts`. The request-level user context including `jti` for session management operations.
+- **Response Envelope** — `src/common/transform/response/`. Global `{ data: ... }` wrapper on success responses.
+
 ## Conventions
 
 - **Entity**: `users.entity.ts` defines the User TypeORM entity with a BeforeInsert hook to hash passwords using bcrypt.

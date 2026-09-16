@@ -185,3 +185,8 @@ All variables are read by `src/config/configuration.ts` and exposed under the `a
 ## Conventions
 
 Project-wide role, code standards, and the response-envelope contract: [AGENTS.md](./AGENTS.md).
+
+## Domain and decisions
+
+- [CONTEXT.md](./CONTEXT.md) — Domain glossary (terms like Session, JTI, Refresh Token Rotation, Reuse Detection).
+- [docs/adr/0001-session-based-jwt-revocation.md](./docs/adr/0001-session-based-jwt-revocation.md) — ADR on the session-based token revocation model.

@@ -31,5 +31,21 @@ patterns and architecture decisions, not generic Node.js approaches.
 
 ## Context files
 
+- [CONTEXT.md](./CONTEXT.md) - Domain glossary and architecture decisions
 - [src/auth/AGENTS.md](src/auth/AGENTS.md) - Authentication module documentation
 - [src/db/AGENTS.md](src/db/AGENTS.md) - Database configuration and migration documentation
+- [docs/adr/0001-session-based-jwt-revocation.md](./docs/adr/0001-session-based-jwt-revocation.md) - ADR for session-based JWT revocation
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all operations. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The skills speak in terms of five canonical triage roles. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout (one `CONTEXT.md` + `docs/adr/` at repo root). See `docs/agents/domain.md`.
